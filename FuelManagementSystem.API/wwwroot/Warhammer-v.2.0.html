@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <title>Warhammer</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <style>
+        @font-face {
+            font-family: 'WarStyle';
+            src: url('Fonts/TheCrewPro.ttf') format('truetype');
+        }
+
+        .auth-section {
+            background-color: #1a1a1a;
+            /* Убираем min-height и центрирование */
+            display: block;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+        }
+
+        .auth-container {
+            position: relative;
+            width: 100%;
+            height: 355px;
+            background: radial-gradient(75% 60%, rgba(44,44,44) 30%, #000 100%);
+            border-radius: 0;
+            overflow: hidden;
+            margin: 0;
+            max-width: none;
+        }
+
+        .moving-image {
+            position: absolute;
+            width: 254px;
+            height: 355px;
+            background: url('Images/AdeptusAstartes.jpg') center center no-repeat;
+            background-size: cover;
+            border-radius: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: left 1.5s linear;
+            left: 0;
+            z-index: 4;
+        }
+
+            .moving-image.right {
+                left: calc(100% - 254px);
+            }
+
+        .text-container {
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            transform: translateY(-50%);
+            width: 700px;
+            z-index: 1;
+        }
+
+        .auth-title {
+            font-family: WarStyle;
+            color: white;
+            text-align: center;
+            font-size: 70px;
+            line-height: 1.2;
+            margin: 0;
+            padding: 0;
+            clip-path: polygon(0 0, 0 100%, 0 100%, 0 0);
+            transition: clip-path 1.5s linear;
+        }
+
+            .auth-title.visible {
+                clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+            }
+
+        .action-button {
+            position: absolute;
+            top: calc(100% + 20px);
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease 0.5s, visibility 0.5s ease 1.5s;
+        }
+
+            .action-button.visible {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .action-button:hover {
+                background: rgba(255, 255, 255, 0.25);
+                transform: translateX(-50%) translateY(-2px);
+                border-color: rgba(255, 255, 255, 0.3);
+            }
+
+        .form-container {
+            position: absolute;
+            top: 50%;
+            left: 60%;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 200px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease 0.5s, visibility 0.5s ease 0.5s;
+        }
+
+            .form-container.visible {
+                opacity: 1;
+                visibility: visible;
+            }
+
+        .input-fields {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-field {
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+            .input-field:focus {
+                outline: none;
+                border-color: rgba(255, 255, 255, 0.4);
+                background: rgba(255, 255, 255, 0.15);
+            }
+
+            .input-field::placeholder {
+                color: rgba(255, 255, 255, 0.6);
+            }
+
+        .move-button {
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            text-align: center;
+            margin-top: 5px;
+        }
+
+            .move-button:hover {
+                background: rgba(255, 255, 255, 0.25);
+                transform: translateY(-2px);
+                border-color: rgba(255, 255, 255, 0.3);
+            }
+
+        /* Убеждаемся, что body тоже не создает отступов */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        /* Убираем отступы у main */
+        main {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-content">
+            <h1>Warhammer</h1>
+            <h4><cite>"В мрачной тьме далёкого будущего есть лишь война".</cite></h4>
+        </div>
+    </header>
+
+    <main>
+        <section class="auth-section">
+            <div class="auth-container">
+                <div class="moving-image" id="movingImage"></div>
+
+                <div class="text-container">
+                    <h2 class="auth-title" id="textElement">Ксенос! Уничтожить во имя Императора!</h2>
+                    <button class="action-button" id="successButton" onclick="moveBack()">Выйти</button>
+                    <button class="action-button" id="failButton" onclick="moveBack()">Попытайся вновь</button>
+                </div>
+
+                <div class="form-container" id="formContainer">
+                    <div class="input-fields">
+                        <input type="text" class="input-field" id="password1" placeholder="Введите логин">
+                        <input type="text" class="input-field" id="password2" placeholder="Введите пароль">
+                    </div>
+                    <button class="move-button" onclick="moveImage()">Войти</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-content">
+            <h4><cite>"И война никогда не закончиться. Даже когда восстанет Император."</cite></h4>
+        </div>
+    </footer>
+
+    <script>
+        // Показываем форму ввода при загрузке страницы
+        window.addEventListener('load', () => {
+            const formContainer = document.getElementById("formContainer");
+            formContainer.classList.add("visible");
+        });
+
+        function moveImage() {
+            const image = document.getElementById("movingImage");
+            const text = document.getElementById("textElement");
+            const formContainer = document.getElementById("formContainer");
+            const successButton = document.getElementById("successButton");
+            const failButton = document.getElementById("failButton");
+            const password1 = document.getElementById("password1").value;
+            const password2 = document.getElementById("password2").value;
+
+            // Двигаем вправо - показываем текст
+            image.classList.add("right");
+            text.classList.add("visible");
+
+            // Скрываем форму ввода (плавно)
+            formContainer.classList.remove("visible");
+
+            // Проверяем пароли и устанавливаем соответствующий текст
+            if (password1 && password2 && password1 === password2) {
+                text.textContent = "С возвращением в наши ряды!";
+                // Показываем кнопку "Выйти" с задержкой после появления текста
+                setTimeout(() => {
+                    successButton.classList.add("visible");
+                }, 100);
+                failButton.classList.remove("visible");
+            } else {
+                text.textContent = "Ксенос! Уничтожить во имя Императора!";
+                // Показываем кнопку "Попытайся вновь" с задержкой после появления текста
+                setTimeout(() => {
+                    failButton.classList.add("visible");
+                }, 100);
+                successButton.classList.remove("visible");
+            }
+        }
+
+        function moveBack() {
+            const image = document.getElementById("movingImage");
+            const text = document.getElementById("textElement");
+            const formContainer = document.getElementById("formContainer");
+            const successButton = document.getElementById("successButton");
+            const failButton = document.getElementById("failButton");
+            const password1 = document.getElementById("password1");
+            const password2 = document.getElementById("password2");
+
+            // Очищаем поля ввода (только при нажатии на эти кнопки)
+            password1.value = '';
+            password2.value = '';
+
+            // Двигаем влево - скрываем текст
+            image.classList.remove("right");
+            text.classList.remove("visible");
+
+            // Скрываем кнопки действий без задержки
+            successButton.classList.remove("visible");
+            failButton.classList.remove("visible");
+
+            // Показываем форму ввода с задержкой (когда картинка на 50%)
+            setTimeout(() => {
+                formContainer.classList.add("visible");
+            }, 100);
+        }
+    </script>
+</body>
+</html>
