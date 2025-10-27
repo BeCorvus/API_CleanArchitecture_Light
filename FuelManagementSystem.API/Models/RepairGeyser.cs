@@ -3,17 +3,13 @@ using System.Collections.Generic;
 
 namespace FuelManagementSystem.API.Models;
 
-public partial class Fuel
+public partial class RepairGeyser
 {
-    public int IdFuel { get; set; }
+    public int IdRepairGeyser { get; set; }
 
-    public string? Brand { get; set; }
+    public int? IdRepair { get; set; }
 
-    public int? ShelfLife { get; set; }
-
-    public string? Manufacturer { get; set; }
-
-    public decimal? Cost { get; set; }
+    public int? IdGeyser { get; set; }
 
     public DateTime? DateOfRecording { get; set; }
 
@@ -25,5 +21,7 @@ public partial class Fuel
 
     public string? Note { get; set; }
 
-    public virtual ICollection<GeyserFuel> GeyserFuels { get; set; } = new List<GeyserFuel>();
+    public virtual Geyser? IdGeyserNavigation { get; set; }
+
+    public virtual Repair? IdRepairNavigation { get; set; }
 }

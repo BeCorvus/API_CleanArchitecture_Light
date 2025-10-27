@@ -3,17 +3,19 @@ using System.Collections.Generic;
 
 namespace FuelManagementSystem.API.Models;
 
-public partial class Equipment
+public partial class Geyser
 {
-    public int IdEquipment { get; set; }
+    public int IdGeyser { get; set; }
 
-    public string? Name { get; set; }
+    public int? Name { get; set; }
 
-    public string? Brand { get; set; }
-
-    public int? IdGeyser { get; set; }
+    public int? YearOfRelease { get; set; }
 
     public int? IdRepair { get; set; }
+
+    public int? IdFuel { get; set; }
+
+    public string? Manufacturer { get; set; }
 
     public DateTime? DateOfRecording { get; set; }
 
@@ -27,5 +29,7 @@ public partial class Equipment
 
     public virtual ICollection<GeyserEquipment> GeyserEquipments { get; set; } = new List<GeyserEquipment>();
 
-    public virtual ICollection<RepairEquipment> RepairEquipments { get; set; } = new List<RepairEquipment>();
+    public virtual ICollection<GeyserFuel> GeyserFuels { get; set; } = new List<GeyserFuel>();
+
+    public virtual ICollection<RepairGeyser> RepairGeysers { get; set; } = new List<RepairGeyser>();
 }

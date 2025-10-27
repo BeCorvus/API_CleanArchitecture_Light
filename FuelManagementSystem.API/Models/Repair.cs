@@ -1,33 +1,35 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 
-namespace FuelManagementSystem.Models
+namespace FuelManagementSystem.API.Models;
+
+public partial class Repair
 {
-    public class Repair : BaseEntity
-    {
-        [Key]
-        public int ID_Repair { get; set; }
-        
-        [Required]
-        [StringLength(100)]
-        public string Name { get; set; }
-        
-        public DateTime RepairDate { get; set; }
-        
-        [StringLength(100)]
-        public string Manufacturer { get; set; }
-        
-        public DateTime ManufactureDate { get; set; }
-        
-        [StringLength(100)]
-        public string Repairer { get; set; }
-        
-        public decimal Cost { get; set; }
-        
-        // Навигационные свойства
-        public ICollection<ColumnRepair> ColumnRepairs { get; set; }
-        public ICollection<NozzleRepair> NozzleRepairs { get; set; }
-        public ICollection<EquipmentRepair> EquipmentRepairs { get; set; }
-    }
+    public int IdRepair { get; set; }
+
+    public string? Name { get; set; }
+
+    public DateOnly? DateOfRepair { get; set; }
+
+    public string? Manufacturer { get; set; }
+
+    public DateOnly? ReleaseDate { get; set; }
+
+    public string? Repairman { get; set; }
+
+    public decimal? Cost { get; set; }
+
+    public DateTime? DateOfRecording { get; set; }
+
+    public DateTime? DateOfChange { get; set; }
+
+    public string? WhoRecorded { get; set; }
+
+    public string? WhoChanged { get; set; }
+
+    public string? Note { get; set; }
+
+    public virtual ICollection<RepairEquipment> RepairEquipments { get; set; } = new List<RepairEquipment>();
+
+    public virtual ICollection<RepairGeyser> RepairGeysers { get; set; } = new List<RepairGeyser>();
 }
