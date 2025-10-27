@@ -1,26 +1,25 @@
-using FuelManagementSystem.API.Data;
-using FuelManagementSystem.Models;
+using FuelManagementSystem.API.Models;
 using Microsoft.EntityFrameworkCore;
 
 
 namespace FuelManagementSystem.API.Repositories
 {
-    public class FuelColumnRepository : Repository<FuelColumn>, IFuelColumnRepository
+    public class FuelRepository : Repository<Fuel>, IFuelRepository
     {
-        public FuelColumnRepository(ApplicationDbContext context) : base(context)
+        public FuelRepository(ApplicationDbContext context) : base(context)
         {
         }
 
-        public async Task<IEnumerable<FuelColumn>> GetFuelColumnsWithNozzlesAsync()
+        public async Task<IEnumerable<Fuel>> GetFuelColumnsWithNozzlesAsync()
         {
-            return await _context.FuelColumns
-                .Include(c => c.Nozzles)
+            return await _context.Fuels
+                .Include(c => c.Brand)
                 .ToListAsync();
         }
     }
 
-    public interface IFuelColumnRepository : IRepository<FuelColumn>
+    public interface IFuelRepository : IRepository<Fuel>
     {
-        Task<IEnumerable<FuelColumn>> GetFuelColumnsWithNozzlesAsync();
+        Task<IEnumerable<Fuel>> GetFuelColumnsWithNozzlesAsync();
     }
 }

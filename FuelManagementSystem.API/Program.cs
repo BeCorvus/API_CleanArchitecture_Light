@@ -2,7 +2,7 @@
 
 // ИПИ (Классы для доступа к данным)
 // Пример - контекстБД (DbContext)
-using FuelManagementSystem.API.Data;
+using FuelManagementSystem.API.Models;
 
 // ИПИ (внутри классы-репозитории)
 // Репозитории = абстракция доступа к данным
@@ -65,7 +65,7 @@ internal class Program
 
         // Регаем конкретный репозиторий
         // Запрос IFuelColumnRepository -> FuelColumnRepository (область жизни - Scoped)
-        builder.Services.AddScoped<IFuelColumnRepository, FuelColumnRepository>();
+        builder.Services.AddScoped<IFuelRepository, FuelRepository>();
 
         // Регаем сервисы для работы Swagger/OpenAPI с min API (endpoints)
         // Для распознания Swagger-ом конечных точек в приложениях с min API

@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace FuelManagementSystem.API.Models
+namespace FuelManagementSystem.API.DTO
 {
-    public abstract class BaseEntity
+    public abstract class BaseEntityDTO
     {
         public DateTime CreatedDate { get; set; }
         public DateTime ModifiedDate { get; set; }

@@ -1,5 +1,4 @@
-using FuelManagementSystem.API.Data;
-using FuelManagementSystem.Models;
+using FuelManagementSystem.API.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
