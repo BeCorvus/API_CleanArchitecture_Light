@@ -81,7 +81,7 @@ internal class Program
             // OpenApiInfo - класс с метаданными API
             //      Title - название API, кот. видно в интерфейсе Swagger UI
             //      Version - версия API
-            c.SwaggerDoc("v.1.0", new OpenApiInfo { Title = "Fuel Consumpt API", Version = "v.1.0" });
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Fuel Consumpt API", Version = "v1" });
         });
 
         // Добавляем сервисы CORS (Cross-Origin Resource Sharing) в контейнер зависимостей
@@ -150,10 +150,10 @@ internal class Program
 
 
         // Fallback ��� SPA
-        app.MapFallbackToFile("/Warhammer-v.2.0.html");
+        //app.MapFallbackToFile("/Warhammer-v.2.0.html");
 
         // �������� URL ����� �� �������� �����������
-        app.MapGet("/", () => Results.Redirect("/Warhammer-v.2.0.html"));
+        //app.MapGet("/", () => Results.Redirect("/Warhammer-v.2.0.html"));
 
 
         // Запуск приложения
