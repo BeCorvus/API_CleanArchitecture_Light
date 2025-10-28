@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace FuelManagementSystem.API.Models;
 
-public partial class GeyserEquipment
+public partial class GeyserEquipment : ISoftDelete
 {
     public int IdGeyserEquipment { get; set; }
 
@@ -20,6 +20,8 @@ public partial class GeyserEquipment
     public string? WhoChanged { get; set; }
 
     public string? Note { get; set; }
+
+    public bool IsDeleted { get; set; } = false;
 
     public virtual Equipment? IdEquipmentNavigation { get; set; }
 

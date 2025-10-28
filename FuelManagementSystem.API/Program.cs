@@ -69,6 +69,8 @@ internal class Program
 
         builder.Services.AddScoped<IEquipmentRepository, EquipmentRepository>();
 
+        builder.Services.AddAutoMapper(typeof(Program));
+
         // Регаем сервисы для работы Swagger/OpenAPI с min API (endpoints)
         // Для распознания Swagger-ом конечных точек в приложениях с min API
         builder.Services.AddEndpointsApiExplorer();

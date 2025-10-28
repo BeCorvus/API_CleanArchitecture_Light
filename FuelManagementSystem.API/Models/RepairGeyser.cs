@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace FuelManagementSystem.API.Models;
 
-public partial class RepairGeyser
+public partial class RepairGeyser : ISoftDelete
 {
     public int IdRepairGeyser { get; set; }
 
@@ -20,6 +20,8 @@ public partial class RepairGeyser
     public string? WhoChanged { get; set; }
 
     public string? Note { get; set; }
+
+    public bool IsDeleted { get; set; } = false;
 
     public virtual Geyser? IdGeyserNavigation { get; set; }
 

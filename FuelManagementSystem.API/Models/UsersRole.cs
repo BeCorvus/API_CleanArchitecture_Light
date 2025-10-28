@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace FuelManagementSystem.API.Models;
 
-public partial class UsersRole
+public partial class UsersRole : ISoftDelete
 {
     public int IdUsersRoles { get; set; }
 
@@ -20,6 +20,8 @@ public partial class UsersRole
     public string? WhoChanged { get; set; }
 
     public string? Note { get; set; }
+
+    public bool IsDeleted { get; set; } = false;
 
     public virtual Role? IdRolesNavigation { get; set; }
 

@@ -49,9 +49,9 @@ namespace FuelManagementSystem.API.Repositories
         public async Task SoftDeleteAsync(int id)
         {
             var entity = await GetByIdAsync(id);
-            if (entity != null && entity is BaseEntity baseEntity)
+            if (entity != null && entity is ISoftDelete softDeleteEntity)
             {
-                baseEntity.IsDeleted = true;
+                softDeleteEntity.IsDeleted = true;
                 await UpdateAsync(entity);
             }
         }

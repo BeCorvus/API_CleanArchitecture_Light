@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace FuelManagementSystem.API.Models;
 
-public partial class RepairEquipment
+public partial class RepairEquipment : ISoftDelete
 {
     public int IdRepairEquipment { get; set; }
 
@@ -20,6 +20,8 @@ public partial class RepairEquipment
     public string? WhoChanged { get; set; }
 
     public string? Note { get; set; }
+
+    public bool IsDeleted { get; set; } = false;
 
     public virtual Equipment? IdEquipmentNavigation { get; set; }
 
