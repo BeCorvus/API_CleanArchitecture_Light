@@ -7,6 +7,6 @@
         public string CreatedBy { get; set; }
         public string ModifiedBy { get; set; }
         public string Note { get; set; }
-        public bool IsDeleted { get; set; } = false;  // Реализует ISoftDelete
+        public DateTime? WhenDeleted { get; set; }
     }
 }

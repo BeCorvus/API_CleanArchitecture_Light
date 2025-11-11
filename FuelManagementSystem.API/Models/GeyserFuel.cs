@@ -21,7 +21,7 @@ public partial class GeyserFuel : ISoftDelete
 
     public string? Note { get; set; }
 
-    public bool IsDeleted { get; set; } = false;
+    public DateTime? WhenDeleted { get; set; }
 
     public virtual Fuel? IdFuelNavigation { get; set; }
 

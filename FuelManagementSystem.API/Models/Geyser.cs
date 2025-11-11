@@ -27,7 +27,7 @@ public partial class Geyser : ISoftDelete
 
     public string? Note { get; set; }
 
-    public bool IsDeleted { get; set; } = false;
+    public DateTime? WhenDeleted { get; set; }
 
     public virtual ICollection<GeyserEquipment> GeyserEquipments { get; set; } = new List<GeyserEquipment>();
 

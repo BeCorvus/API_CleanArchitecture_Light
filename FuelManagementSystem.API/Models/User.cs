@@ -23,7 +23,7 @@ public partial class User : ISoftDelete
 
     public string? Note { get; set; }
 
-    public bool IsDeleted { get; set; } = false;
+    public DateTime? WhenDeleted { get; set; }
 
     public virtual ICollection<UsersRole> UsersRoles { get; set; } = new List<UsersRole>();
 }

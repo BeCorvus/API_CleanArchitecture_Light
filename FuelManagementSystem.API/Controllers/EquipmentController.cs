@@ -2,7 +2,6 @@
 using FuelManagementSystem.API.DTO;
 using FuelManagementSystem.API.Models;
 using FuelManagementSystem.API.Repositories;
-using AutoMapper;
 using System.ComponentModel.DataAnnotations;
 
 namespace FuelManagementSystem.API.Controllers
@@ -11,201 +10,215 @@ namespace FuelManagementSystem.API.Controllers
     [Route("api/[controller]")]
     public class EquipmentController : ControllerBase
     {
-        private readonly IRepository<Equipment> _equipmentRepository;
-        private readonly IMapper _mapper;
-        private readonly ILogger<EquipmentController> _logger;
+        private readonly IEquipmentRepository _equipmentRepository;
 
-        public EquipmentController(
-            IRepository<Equipment> equipmentRepository,
-            IMapper mapper,
-            ILogger<EquipmentController> logger)
+        public EquipmentController(IEquipmentRepository equipmentRepository)
         {
             _equipmentRepository = equipmentRepository;
-            _mapper = mapper;
-            _logger = logger;
         }
 
         // GET: api/equipment
         [HttpGet]
         public async Task<ActionResult<IEnumerable<EquipmentDto>>> GetAllEquipment()
         {
-            try
-            {
-                var equipment = await _equipmentRepository.GetAllAsync();
+            var equipment = await _equipmentRepository.GetAllAsync();
+            var activeEquipment = equipment.Where(e => e.WhenDeleted == null);
 
-                // Фильтруем неудаленные записи (опционально)
-                var activeEquipment = equipment.Where(e => !e.IsDeleted);
-
-                var result = _mapper.Map<IEnumerable<EquipmentDto>>(activeEquipment);
-                return Ok(result);
-            }
-            catch (Exception ex)
+            var equipmentDtos = activeEquipment.Select(e => new EquipmentDto
             {
-                _logger.LogError(ex, "Error occurred while getting all equipment");
-                return StatusCode(500, "Internal server error");
-            }
+                Id = e.IdEquipment,
+                Name = e.Name,
+                Brand = e.Brand,
+                Note = e.Note
+            });
+
+            return Ok(equipmentDtos);
         }
 
-        // GET: api/equipment/5
+        // GET: api/equipment/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<EquipmentDto>> GetEquipmentById(int id)
         {
-            try
-            {
-                var equipment = await _equipmentRepository.GetByIdAsync(id);
+            var equipment = await _equipmentRepository.GetByIdAsync(id);
 
-                if (equipment == null || equipment.IsDeleted)
-                {
-                    return NotFound($"Equipment with ID {id} not found");
-                }
-
-                var result = _mapper.Map<EquipmentDto>(equipment);
-                return Ok(result);
-            }
-            catch (Exception ex)
+            if (equipment == null || equipment.WhenDeleted != null)
             {
-                _logger.LogError(ex, "Error occurred while getting equipment with ID {EquipmentId}", id);
-                return StatusCode(500, "Internal server error");
+                return NotFound();
             }
+
+            var equipmentDto = new EquipmentDto
+            {
+                Id = equipment.IdEquipment,
+                Name = equipment.Name,
+                Brand = equipment.Brand,
+                Note = equipment.Note
+            };
+
+            return Ok(equipmentDto);
         }
 
-        // GET: api/equipment/admin/5
-        [HttpGet("admin/{id}")]
-        public async Task<ActionResult<EquipmentAdminDto>> GetEquipmentByIdForAdmin(int id)
+        // GET: api/equipment/geyser/{geyserId}
+        [HttpGet("geyser/{geyserId}")]
+        public async Task<ActionResult<IEnumerable<EquipmentDto>>> GetEquipmentByGeyserId(int geyserId)
         {
-            try
-            {
-                var equipment = await _equipmentRepository.GetByIdAsync(id);
+            var equipment = await _equipmentRepository.GetByGeyserIdAsync(geyserId);
+            var activeEquipment = equipment.Where(e => e.WhenDeleted == null);
 
-                if (equipment == null)
-                {
-                    return NotFound($"Equipment with ID {id} not found");
-                }
-
-                var result = _mapper.Map<EquipmentAdminDto>(equipment);
-                return Ok(result);
-            }
-            catch (Exception ex)
+            var equipmentDtos = activeEquipment.Select(e => new EquipmentDto
             {
-                _logger.LogError(ex, "Error occurred while getting equipment for admin with ID {EquipmentId}", id);
-                return StatusCode(500, "Internal server error");
-            }
+                Id = e.IdEquipment,
+                Name = e.Name,
+                Brand = e.Brand,
+                Note = e.Note
+            });
+
+            return Ok(equipmentDtos);
         }
 
-        // POST: api/equipment
-        [HttpPost]
-        public async Task<ActionResult<EquipmentDto>> CreateEquipment([FromBody] CreateEquipmentDto createDto)
+        // GET: api/equipment/brand/{brand}
+        [HttpGet("brand/{brand}")]
+        public async Task<ActionResult<IEnumerable<EquipmentDto>>> GetEquipmentByBrand(string brand)
         {
-            try
+            var equipment = await _equipmentRepository.GetByBrandAsync(brand);
+            var activeEquipment = equipment.Where(e => e.WhenDeleted == null);
+
+            var equipmentDtos = activeEquipment.Select(e => new EquipmentDto
             {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
+                Id = e.IdEquipment,
+                Name = e.Name,
+                Brand = e.Brand,
+                Note = e.Note
+            });
 
-                var equipment = _mapper.Map<Equipment>(createDto);
-                await _equipmentRepository.AddAsync(equipment);
-
-                var result = _mapper.Map<EquipmentDto>(equipment);
-                return CreatedAtAction(nameof(GetEquipmentById), new { id = equipment.IdEquipment }, result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while creating equipment");
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        // PUT: api/equipment/5
-        [HttpPut("{id}")]
-        public async Task<ActionResult<EquipmentDto>> UpdateEquipment(int id, [FromBody] UpdateEquipmentDto updateDto)
-        {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-
-                var existingEquipment = await _equipmentRepository.GetByIdAsync(id);
-                if (existingEquipment == null || existingEquipment.IsDeleted)
-                {
-                    return NotFound($"Equipment with ID {id} not found");
-                }
-
-                _mapper.Map(updateDto, existingEquipment);
-                await _equipmentRepository.UpdateAsync(existingEquipment);
-
-                var result = _mapper.Map<EquipmentDto>(existingEquipment);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while updating equipment with ID {EquipmentId}", id);
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        // DELETE: api/equipment/5
-        [HttpDelete("{id}")]
-        public async Task<ActionResult> DeleteEquipment(int id)
-        {
-            try
-            {
-                var equipment = await _equipmentRepository.GetByIdAsync(id);
-                if (equipment == null || equipment.IsDeleted)
-                {
-                    return NotFound($"Equipment with ID {id} not found");
-                }
-
-                await _equipmentRepository.SoftDeleteAsync(id);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while deleting equipment with ID {EquipmentId}", id);
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        // GET: api/equipment/search?name={name}&brand={brand}
-        [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<EquipmentDto>>> SearchEquipment(
-            [FromQuery] string name = null,
-            [FromQuery] string brand = null)
-        {
-            try
-            {
-                var equipment = await _equipmentRepository.FindAsync(e =>
-                    (string.IsNullOrEmpty(name) || e.Name.Contains(name)) &&
-                    (string.IsNullOrEmpty(brand) || e.Brand.Contains(brand)) &&
-                    !e.IsDeleted);
-
-                var result = _mapper.Map<IEnumerable<EquipmentDto>>(equipment);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while searching equipment");
-                return StatusCode(500, "Internal server error");
-            }
+            return Ok(equipmentDtos);
         }
 
         // GET: api/equipment/admin
         [HttpGet("admin")]
         public async Task<ActionResult<IEnumerable<EquipmentAdminDto>>> GetAllEquipmentForAdmin()
         {
-            try
+            var equipment = await _equipmentRepository.GetAllAsync();
+
+            var equipmentAdminDtos = equipment.Select(e => new EquipmentAdminDto
             {
-                var equipment = await _equipmentRepository.GetAllAsync();
-                var result = _mapper.Map<IEnumerable<EquipmentAdminDto>>(equipment);
-                return Ok(result);
-            }
-            catch (Exception ex)
+                Id = e.IdEquipment,
+                Name = e.Name,
+                Brand = e.Brand,
+                Note = e.Note,
+                DateOfRecording = e.DateOfRecording,
+                DateOfChange = e.DateOfChange,
+                WhoRecorded = e.WhoRecorded,
+                WhoChanged = e.WhoChanged,
+                WhenDeleted = e.WhenDeleted
+            });
+
+            return Ok(equipmentAdminDtos);
+        }
+
+        // POST: api/equipment
+        [HttpPost]
+        public async Task<ActionResult<EquipmentDto>> CreateEquipment(CreateEquipmentDto createDto)
+        {
+            if (!ModelState.IsValid)
             {
-                _logger.LogError(ex, "Error occurred while getting all equipment for admin");
-                return StatusCode(500, "Internal server error");
+                return BadRequest(ModelState);
             }
+
+            var equipment = new Equipment
+            {
+                Name = createDto.Name,
+                Brand = createDto.Brand,
+                Note = createDto.Note,
+                DateOfRecording = DateTime.Now,
+                WhoRecorded = "System", // В реальном приложении здесь будет текущий пользователь
+                WhenDeleted = null
+            };
+
+            await _equipmentRepository.AddAsync(equipment);
+
+            var equipmentDto = new EquipmentDto
+            {
+                Id = equipment.IdEquipment,
+                Name = equipment.Name,
+                Brand = equipment.Brand,
+                Note = equipment.Note
+            };
+
+            return CreatedAtAction(nameof(GetEquipmentById), new { id = equipment.IdEquipment }, equipmentDto);
+        }
+
+        // PUT: api/equipment/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateEquipment(int id, UpdateEquipmentDto updateDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var equipment = await _equipmentRepository.GetByIdAsync(id);
+
+            if (equipment == null || equipment.WhenDeleted != null)
+            {
+                return NotFound();
+            }
+
+            equipment.Name = updateDto.Name;
+            equipment.Brand = updateDto.Brand;
+            equipment.Note = updateDto.Note;
+            equipment.DateOfChange = DateTime.Now;
+            equipment.WhoChanged = "System"; // В реальном приложении здесь будет текущий пользователь
+
+            await _equipmentRepository.UpdateAsync(equipment);
+
+            return NoContent();
+        }
+
+        // DELETE: api/equipment/{id} (Soft Delete)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> SoftDeleteEquipment(int id)
+        {
+            var equipment = await _equipmentRepository.GetByIdAsync(id);
+
+            if (equipment == null || equipment.WhenDeleted != null)
+            {
+                return NotFound();
+            }
+
+            equipment.WhenDeleted = DateTime.Now;
+            equipment.DateOfChange = DateTime.Now;
+            equipment.WhoChanged = "System"; // В реальном приложении здесь будет текущий пользователь
+
+            await _equipmentRepository.UpdateAsync(equipment);
+
+            return NoContent();
+        }
+
+        // GET: api/equipment/admin/{id}
+        [HttpGet("admin/{id}")]
+        public async Task<ActionResult<EquipmentAdminDto>> GetEquipmentByIdForAdmin(int id)
+        {
+            var equipment = await _equipmentRepository.GetByIdAsync(id);
+
+            if (equipment == null)
+            {
+                return NotFound();
+            }
+
+            var equipmentAdminDto = new EquipmentAdminDto
+            {
+                Id = equipment.IdEquipment,
+                Name = equipment.Name,
+                Brand = equipment.Brand,
+                Note = equipment.Note,
+                DateOfRecording = equipment.DateOfRecording,
+                DateOfChange = equipment.DateOfChange,
+                WhoRecorded = equipment.WhoRecorded,
+                WhoChanged = equipment.WhoChanged,
+                WhenDeleted = equipment.WhenDeleted
+            };
+
+            return Ok(equipmentAdminDto);
         }
     }
 }

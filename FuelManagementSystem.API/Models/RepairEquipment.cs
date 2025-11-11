@@ -21,7 +21,7 @@ public partial class RepairEquipment : ISoftDelete
 
     public string? Note { get; set; }
 
-    public bool IsDeleted { get; set; } = false;
+    public DateTime? WhenDeleted { get; set; }
 
     public virtual Equipment? IdEquipmentNavigation { get; set; }
 
