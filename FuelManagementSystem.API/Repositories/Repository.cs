@@ -51,7 +51,39 @@ namespace FuelManagementSystem.API.Repositories
             var entity = await GetByIdAsync(id);
             if (entity != null && entity is ISoftDelete softDeleteEntity)
             {
-                softDeleteEntity.IsDeleted = true;
+                softDeleteEntity.WhenDeleted = DateTime.Now;
+                await UpdateAsync(entity);
+            }
+        }
+
+        // Дополнительные методы для работы с мягким удалением
+        public async Task<IEnumerable<T>> GetAllActiveAsync()
+        {
+            if (typeof(ISoftDelete).IsAssignableFrom(typeof(T)))
+            {
+                return await _dbSet
+                    .Where(e => ((ISoftDelete)e).WhenDeleted == null)
+                    .ToListAsync();
+            }
+            return await _dbSet.ToListAsync();
+        }
+
+        public async Task<T> GetActiveByIdAsync(int id)
+        {
+            var entity = await GetByIdAsync(id);
+            if (entity != null && entity is ISoftDelete softDeleteEntity)
+            {
+                return softDeleteEntity.WhenDeleted == null ? entity : null;
+            }
+            return entity;
+        }
+
+        public async Task RestoreAsync(int id)
+        {
+            var entity = await GetByIdAsync(id);
+            if (entity != null && entity is ISoftDelete softDeleteEntity)
+            {
+                softDeleteEntity.WhenDeleted = null;
                 await UpdateAsync(entity);
             }
         }

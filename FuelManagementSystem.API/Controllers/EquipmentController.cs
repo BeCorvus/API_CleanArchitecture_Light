@@ -29,6 +29,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = e.IdEquipment,
                 Name = e.Name,
                 Brand = e.Brand,
+                IdGeyser = e.IdGeyser,
+                IdRepair = e.IdRepair,
                 Note = e.Note
             });
 
@@ -51,6 +53,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = equipment.IdEquipment,
                 Name = equipment.Name,
                 Brand = equipment.Brand,
+                IdGeyser = equipment.IdGeyser,
+                IdRepair = equipment.IdRepair,
                 Note = equipment.Note
             };
 
@@ -69,6 +73,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = e.IdEquipment,
                 Name = e.Name,
                 Brand = e.Brand,
+                IdGeyser = e.IdGeyser,
+                IdRepair = e.IdRepair,
                 Note = e.Note
             });
 
@@ -87,6 +93,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = e.IdEquipment,
                 Name = e.Name,
                 Brand = e.Brand,
+                IdGeyser = e.IdGeyser,
+                IdRepair = e.IdRepair,
                 Note = e.Note
             });
 
@@ -104,6 +112,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = e.IdEquipment,
                 Name = e.Name,
                 Brand = e.Brand,
+                IdGeyser = e.IdGeyser,
+                IdRepair = e.IdRepair,
                 Note = e.Note,
                 DateOfRecording = e.DateOfRecording,
                 DateOfChange = e.DateOfChange,
@@ -128,6 +138,8 @@ namespace FuelManagementSystem.API.Controllers
             {
                 Name = createDto.Name,
                 Brand = createDto.Brand,
+                IdGeyser = createDto.IdGeyser,
+                IdRepair = createDto.IdRepair,
                 Note = createDto.Note,
                 DateOfRecording = DateTime.Now,
                 WhoRecorded = "System", // В реальном приложении здесь будет текущий пользователь
@@ -141,6 +153,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = equipment.IdEquipment,
                 Name = equipment.Name,
                 Brand = equipment.Brand,
+                IdGeyser = equipment.IdGeyser,
+                IdRepair = equipment.IdRepair,
                 Note = equipment.Note
             };
 
@@ -165,6 +179,8 @@ namespace FuelManagementSystem.API.Controllers
 
             equipment.Name = updateDto.Name;
             equipment.Brand = updateDto.Brand;
+            equipment.IdGeyser = updateDto.IdGeyser;
+            equipment.IdRepair = updateDto.IdRepair;
             equipment.Note = updateDto.Note;
             equipment.DateOfChange = DateTime.Now;
             equipment.WhoChanged = "System"; // В реальном приложении здесь будет текущий пользователь
@@ -210,6 +226,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = equipment.IdEquipment,
                 Name = equipment.Name,
                 Brand = equipment.Brand,
+                IdGeyser = equipment.IdGeyser,
+                IdRepair = equipment.IdRepair,
                 Note = equipment.Note,
                 DateOfRecording = equipment.DateOfRecording,
                 DateOfChange = equipment.DateOfChange,
