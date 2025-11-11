@@ -21,14 +21,15 @@ namespace FuelManagementSystem.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<EquipmentDto>>> GetAllEquipment()
         {
-            var equipment = await _equipmentRepository.GetAllAsync();
-            var activeEquipment = equipment.Where(e => e.WhenDeleted == null);
+            var equipment = await _equipmentRepository.GetAllActiveAsync();
 
-            var equipmentDtos = activeEquipment.Select(e => new EquipmentDto
+            var equipmentDtos = equipment.Select(e => new EquipmentDto
             {
                 Id = e.IdEquipment,
                 Name = e.Name,
                 Brand = e.Brand,
+                IdGeyser = e.IdGeyser,
+                IdRepair = e.IdRepair,
                 Note = e.Note
             });
 
@@ -39,9 +40,9 @@ namespace FuelManagementSystem.API.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<EquipmentDto>> GetEquipmentById(int id)
         {
-            var equipment = await _equipmentRepository.GetByIdAsync(id);
+            var equipment = await _equipmentRepository.GetActiveByIdAsync(id);
 
-            if (equipment == null || equipment.WhenDeleted != null)
+            if (equipment == null)
             {
                 return NotFound();
             }
@@ -51,6 +52,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = equipment.IdEquipment,
                 Name = equipment.Name,
                 Brand = equipment.Brand,
+                IdGeyser = equipment.IdGeyser,
+                IdRepair = equipment.IdRepair,
                 Note = equipment.Note
             };
 
@@ -69,6 +72,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = e.IdEquipment,
                 Name = e.Name,
                 Brand = e.Brand,
+                IdGeyser = e.IdGeyser,
+                IdRepair = e.IdRepair,
                 Note = e.Note
             });
 
@@ -87,6 +92,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = e.IdEquipment,
                 Name = e.Name,
                 Brand = e.Brand,
+                IdGeyser = e.IdGeyser,
+                IdRepair = e.IdRepair,
                 Note = e.Note
             });
 
@@ -104,6 +111,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = e.IdEquipment,
                 Name = e.Name,
                 Brand = e.Brand,
+                IdGeyser = e.IdGeyser,
+                IdRepair = e.IdRepair,
                 Note = e.Note,
                 DateOfRecording = e.DateOfRecording,
                 DateOfChange = e.DateOfChange,
@@ -128,9 +137,11 @@ namespace FuelManagementSystem.API.Controllers
             {
                 Name = createDto.Name,
                 Brand = createDto.Brand,
+                IdGeyser = createDto.IdGeyser,
+                IdRepair = createDto.IdRepair,
                 Note = createDto.Note,
                 DateOfRecording = DateTime.Now,
-                WhoRecorded = "System", // В реальном приложении здесь будет текущий пользователь
+                WhoRecorded = "System",
                 WhenDeleted = null
             };
 
@@ -141,6 +152,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = equipment.IdEquipment,
                 Name = equipment.Name,
                 Brand = equipment.Brand,
+                IdGeyser = equipment.IdGeyser,
+                IdRepair = equipment.IdRepair,
                 Note = equipment.Note
             };
 
@@ -156,18 +169,20 @@ namespace FuelManagementSystem.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            var equipment = await _equipmentRepository.GetByIdAsync(id);
+            var equipment = await _equipmentRepository.GetActiveByIdAsync(id);
 
-            if (equipment == null || equipment.WhenDeleted != null)
+            if (equipment == null)
             {
                 return NotFound();
             }
 
             equipment.Name = updateDto.Name;
             equipment.Brand = updateDto.Brand;
+            equipment.IdGeyser = updateDto.IdGeyser;
+            equipment.IdRepair = updateDto.IdRepair;
             equipment.Note = updateDto.Note;
             equipment.DateOfChange = DateTime.Now;
-            equipment.WhoChanged = "System"; // В реальном приложении здесь будет текущий пользователь
+            equipment.WhoChanged = "System";
 
             await _equipmentRepository.UpdateAsync(equipment);
 
@@ -178,18 +193,35 @@ namespace FuelManagementSystem.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> SoftDeleteEquipment(int id)
         {
-            var equipment = await _equipmentRepository.GetByIdAsync(id);
+            var equipment = await _equipmentRepository.GetActiveByIdAsync(id);
 
-            if (equipment == null || equipment.WhenDeleted != null)
+            if (equipment == null)
             {
                 return NotFound();
             }
 
-            equipment.WhenDeleted = DateTime.Now;
-            equipment.DateOfChange = DateTime.Now;
-            equipment.WhoChanged = "System"; // В реальном приложении здесь будет текущий пользователь
+            await _equipmentRepository.SoftDeleteAsync(id);
 
-            await _equipmentRepository.UpdateAsync(equipment);
+            return NoContent();
+        }
+
+        // PATCH: api/equipment/restore/{id}
+        [HttpPatch("restore/{id}")]
+        public async Task<IActionResult> RestoreEquipment(int id)
+        {
+            var equipment = await _equipmentRepository.GetByIdAsync(id);
+
+            if (equipment == null)
+            {
+                return NotFound();
+            }
+
+            if (equipment.WhenDeleted == null)
+            {
+                return BadRequest("Equipment is not deleted.");
+            }
+
+            await _equipmentRepository.RestoreAsync(id);
 
             return NoContent();
         }
@@ -210,6 +242,8 @@ namespace FuelManagementSystem.API.Controllers
                 Id = equipment.IdEquipment,
                 Name = equipment.Name,
                 Brand = equipment.Brand,
+                IdGeyser = equipment.IdGeyser,
+                IdRepair = equipment.IdRepair,
                 Note = equipment.Note,
                 DateOfRecording = equipment.DateOfRecording,
                 DateOfChange = equipment.DateOfChange,
