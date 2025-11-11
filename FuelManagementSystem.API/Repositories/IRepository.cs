@@ -13,10 +13,5 @@ namespace FuelManagementSystem.API.Repositories
         Task AddAsync(T entity);
         Task UpdateAsync(T entity);
         Task SoftDeleteAsync(int id);
-
-        // Новые методы для работы с мягким удалением
-        Task<IEnumerable<T>> GetAllActiveAsync();
-        Task<T> GetActiveByIdAsync(int id);
-        Task RestoreAsync(int id);
     }
 }
