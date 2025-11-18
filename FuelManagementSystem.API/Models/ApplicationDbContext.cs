@@ -48,7 +48,7 @@ public partial class ApplicationDbContext : DbContext
             entity.HasKey(e => e.IdEquipment);
 
             entity.Property(e => e.IdEquipment)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_Equipment");
             entity.Property(e => e.Brand).HasMaxLength(255);
             entity.Property(e => e.DateOfChange).HasColumnName("Date_of_change");
@@ -72,7 +72,7 @@ public partial class ApplicationDbContext : DbContext
             entity.ToTable("Fuel");
 
             entity.Property(e => e.IdFuel)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_Fuel");
             entity.Property(e => e.Brand).HasMaxLength(255);
             entity.Property(e => e.Cost).HasColumnType("decimal(10, 2)");
@@ -96,7 +96,7 @@ public partial class ApplicationDbContext : DbContext
             entity.ToTable("Geyser");
 
             entity.Property(e => e.IdGeyser)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_Geyser");
             entity.Property(e => e.DateOfChange).HasColumnName("Date_of_change");
             entity.Property(e => e.DateOfRecording).HasColumnName("Date_of_recording");
@@ -120,7 +120,7 @@ public partial class ApplicationDbContext : DbContext
             entity.ToTable("GeyserEquipment");
 
             entity.Property(e => e.IdGeyserEquipment)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_GeyserEquipment");
             entity.Property(e => e.DateOfChange).HasColumnName("Date_of_change");
             entity.Property(e => e.DateOfRecording).HasColumnName("Date_of_recording");
@@ -150,7 +150,7 @@ public partial class ApplicationDbContext : DbContext
             entity.ToTable("GeyserFuel");
 
             entity.Property(e => e.IdGeyserFuel)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_GeyserFuel");
             entity.Property(e => e.DateOfChange).HasColumnName("Date_of_change");
             entity.Property(e => e.DateOfRecording).HasColumnName("Date_of_recording");
@@ -180,7 +180,7 @@ public partial class ApplicationDbContext : DbContext
             entity.ToTable("Repair");
 
             entity.Property(e => e.IdRepair)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_Repair");
             entity.Property(e => e.Cost).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.DateOfChange).HasColumnName("Date_of_change");
@@ -206,7 +206,7 @@ public partial class ApplicationDbContext : DbContext
             entity.ToTable("RepairEquipment");
 
             entity.Property(e => e.IdRepairEquipment)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_RepairEquipment");
             entity.Property(e => e.DateOfChange).HasColumnName("Date_of_change");
             entity.Property(e => e.DateOfRecording).HasColumnName("Date_of_recording");
@@ -236,7 +236,7 @@ public partial class ApplicationDbContext : DbContext
             entity.ToTable("RepairGeyser");
 
             entity.Property(e => e.IdRepairGeyser)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_RepairGeyser");
             entity.Property(e => e.DateOfChange).HasColumnName("Date_of_change");
             entity.Property(e => e.DateOfRecording).HasColumnName("Date_of_recording");
@@ -264,7 +264,7 @@ public partial class ApplicationDbContext : DbContext
             entity.HasKey(e => e.IdRoles);
 
             entity.Property(e => e.IdRoles)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_Roles");
             entity.Property(e => e.DateOfChange).HasColumnName("Date_of_change");
             entity.Property(e => e.DateOfRecording).HasColumnName("Date_of_recording");
@@ -283,7 +283,7 @@ public partial class ApplicationDbContext : DbContext
             entity.HasKey(e => e.IdUsers);
 
             entity.Property(e => e.IdUsers)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_Users");
             entity.Property(e => e.DateOfChange).HasColumnName("Date_of_change");
             entity.Property(e => e.DateOfRecording).HasColumnName("Date_of_recording");
@@ -304,7 +304,7 @@ public partial class ApplicationDbContext : DbContext
             entity.HasKey(e => e.IdUsersRoles);
 
             entity.Property(e => e.IdUsersRoles)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnName("ID_UsersRoles");
             entity.Property(e => e.DateOfChange).HasColumnName("Date_of_change");
             entity.Property(e => e.DateOfRecording).HasColumnName("Date_of_recording");
