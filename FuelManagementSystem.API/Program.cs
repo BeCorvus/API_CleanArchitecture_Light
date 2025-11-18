@@ -53,27 +53,10 @@ internal class Program
         // Позволит использовать контроллеры в приложении
         builder.Services.AddControllers();
 
-        // Регаем контекст БД (ApplicationDbContext) в DI-контейнере
-        // Используем - SQL Server
-        // Строка подключения = конфигурация по ключу DefaultConnection
-        builder.Services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-        // Регаем generic-репозиторий.
-        // То есть: запрос IRepository<T> -> для любого типа T - экземпляр Repository<T>
-        builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-
-        // Регаем конкретный репозиторий
-        // Запрос IFuelColumnRepository -> FuelColumnRepository (область жизни - Scoped)
-        builder.Services.AddScoped<IFuelRepository, FuelRepository>();
-
-        builder.Services.AddScoped<IEquipmentRepository, EquipmentRepository>();
-
-        builder.Services.AddAutoMapper(typeof(Program));
-
         // Регаем сервисы для работы Swagger/OpenAPI с min API (endpoints)
         // Для распознания Swagger-ом конечных точек в приложениях с min API
         builder.Services.AddEndpointsApiExplorer();
+
         // Добавляем генератор Swagger. Настройка.
         // AddSwaggerGen - метод для реги сервисов
         // Сервисы - для генерации документации Swagger (OpenAI) для API
@@ -87,6 +70,28 @@ internal class Program
             //      Version - версия API
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "Fuel Consumpt API", Version = "v1" });
         });
+
+        // Регаем контекст БД (ApplicationDbContext) в DI-контейнере (Dependency Injection - "внедрение зависимостей")
+        // Используем - SQL Server
+        // Строка подключения = конфигурация по ключу DefaultConnection
+        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+        // Регаем generic-репозиторий.
+        // То есть: запрос IRepository<T> -> для любого типа T - экземпляр Repository<T>
+        builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
+        // Регаем конкретный репозиторий
+        // Запрос IFuelColumnRepository -> FuelColumnRepository (область жизни - Scoped)
+        builder.Services.AddScoped<IEquipmentRepository, EquipmentRepository>();
+        builder.Services.AddScoped<IFuelRepository, FuelRepository>();
+        builder.Services.AddScoped<IGeyserRepository, GeyserRepository>();
+        builder.Services.AddScoped<IRepairRepository, RepairRepository>();
+        builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+        builder.Services.AddScoped<IUserRepository, UserRepository>();
+
+
+        builder.Services.AddAutoMapper(typeof(Program));
 
         // Добавляем сервисы CORS (Cross-Origin Resource Sharing) в контейнер зависимостей
         // CORS - механизм; позволяет веб-страницам делать запросы к доменам
