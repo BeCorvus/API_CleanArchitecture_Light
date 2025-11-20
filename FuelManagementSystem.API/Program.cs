@@ -32,6 +32,10 @@ using Microsoft.Extensions.Logging;
 // Для генерации документации API и UI для тестирования
 using Microsoft.OpenApi.Models;
 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
 
 // Объявление класса Program
 // Уровень доступа - internal (виден в пределах моей сборки)
@@ -115,6 +119,26 @@ internal class Program
             });
         });
 
+        // Конфигурация JWT аутентификации
+        var jwtSettings = builder.Configuration.GetSection("Jwt");
+        builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtSettings["Issuer"],
+                    ValidAudience = jwtSettings["Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]))
+                };
+            });
+
+        // Регистрация сервисов авторизации
+        builder.Services.AddAuthorization();
+
         // Создание экземпляра приложения из билдера. (WebApplication)
         // Компиляция всех зареганных сервисов и настройка приложения
         var app = builder.Build();
@@ -156,14 +180,6 @@ internal class Program
         // Сопоставляет маршруты с контроллерами
         // Для маршрутизации запросов к нужным методам в контроллерах
         app.MapControllers();
-
-
-        // Fallback ��� SPA
-        //app.MapFallbackToFile("/Warhammer-v.2.0.html");
-
-        // �������� URL ����� �� �������� �����������
-        //app.MapGet("/", () => Results.Redirect("/Warhammer-v.2.0.html"));
-
 
         // Запуск приложения
         // Начало прослушивания входящих HTTP-запросов

@@ -9,24 +9,22 @@ namespace FuelManagementSystem.API.Repositories
         {
         }
 
-        public async Task<IEnumerable<User>> GetByEmailAsync(string email)
+        public async Task<User> GetByEmailAsync(string email)
         {
             return await _context.Users
-                .Where(u => u.Email == email && u.WhenDeleted == null)
-                .ToListAsync();
+                .FirstOrDefaultAsync(u => u.Email == email && u.WhenDeleted == null);
         }
 
-        public async Task<IEnumerable<User>> GetByLoginAsync(string login)
+        public async Task<User> GetByLoginAsync(string login)
         {
             return await _context.Users
-                .Where(u => u.Login == login && u.WhenDeleted == null)
-                .ToListAsync();
+                .FirstOrDefaultAsync(u => u.Login == login && u.WhenDeleted == null);
         }
 
-        public async Task<User> GetByEmailAndPasswordAsync(string email, string password)
+        public async Task<bool> UserExistsAsync(string email, string login)
         {
             return await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == email && u.Password == password && u.WhenDeleted == null);
+                .AnyAsync(u => (u.Email == email || u.Login == login) && u.WhenDeleted == null);
         }
 
         public async Task<IEnumerable<User>> GetAllActiveAsync()

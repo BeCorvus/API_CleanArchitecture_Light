@@ -2,6 +2,7 @@
 using FuelManagementSystem.API.DTO;
 using FuelManagementSystem.API.Models;
 using FuelManagementSystem.API.Repositories;
+using FuelManagementSystem.API.Services;
 using System.ComponentModel.DataAnnotations;
 
 namespace FuelManagementSystem.API.Controllers
@@ -11,10 +12,12 @@ namespace FuelManagementSystem.API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
+        private readonly IPasswordService _passwordService;
 
-        public UserController(IUserRepository userRepository)
+        public UserController(IUserRepository userRepository, IPasswordService passwordService)
         {
             _userRepository = userRepository;
+            _passwordService = passwordService;
         }
 
         // GET: api/user
@@ -90,33 +93,6 @@ namespace FuelManagementSystem.API.Controllers
             return Ok(userDtos);
         }
 
-        // POST: api/user/authenticate
-        [HttpPost("authenticate")]
-        public async Task<ActionResult<UserDto>> AuthenticateUser([FromBody] AuthenticateUserDto authDto)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            var user = await _userRepository.GetByEmailAndPasswordAsync(authDto.Email, authDto.Password);
-
-            if (user == null)
-            {
-                return Unauthorized("Invalid email or password");
-            }
-
-            var userDto = new UserDto
-            {
-                Id = user.IdUsers,
-                Email = user.Email,
-                Login = user.Login,
-                Note = user.Note
-            };
-
-            return Ok(userDto);
-        }
-
         // GET: api/user/admin
         [HttpGet("admin")]
         public async Task<ActionResult<IEnumerable<UserAdminDto>>> GetAllUsersForAdmin()
@@ -149,23 +125,17 @@ namespace FuelManagementSystem.API.Controllers
             }
 
             // Проверка на уникальность email и login
-            var existingEmail = await _userRepository.GetByEmailAsync(createDto.Email);
-            if (existingEmail.Any())
+            var existingUser = await _userRepository.UserExistsAsync(createDto.Email, createDto.Login);
+            if (existingUser)
             {
-                return BadRequest("User with this email already exists.");
-            }
-
-            var existingLogin = await _userRepository.GetByLoginAsync(createDto.Login);
-            if (existingLogin.Any())
-            {
-                return BadRequest("User with this login already exists.");
+                return BadRequest("User with this email or login already exists.");
             }
 
             var user = new User
             {
                 Email = createDto.Email,
                 Login = createDto.Login,
-                Password = createDto.Password, // В реальном приложении пароль должен быть захэширован
+                PasswordHash = _passwordService.HashPassword(createDto.Password), // Хешируем пароль
                 Note = createDto.Note,
                 DateOfRecording = DateTime.Now,
                 WhoRecorded = "System",
@@ -204,8 +174,8 @@ namespace FuelManagementSystem.API.Controllers
             // Проверка на уникальность email (если изменяется)
             if (user.Email != updateDto.Email)
             {
-                var existingEmail = await _userRepository.GetByEmailAsync(updateDto.Email);
-                if (existingEmail.Any(u => u.IdUsers != id))
+                var existingUserByEmail = await _userRepository.GetByEmailAsync(updateDto.Email);
+                if (existingUserByEmail != null && existingUserByEmail.IdUsers != id)
                 {
                     return BadRequest("User with this email already exists.");
                 }
@@ -214,8 +184,8 @@ namespace FuelManagementSystem.API.Controllers
             // Проверка на уникальность login (если изменяется)
             if (user.Login != updateDto.Login)
             {
-                var existingLogin = await _userRepository.GetByLoginAsync(updateDto.Login);
-                if (existingLogin.Any(u => u.IdUsers != id))
+                var existingUserByLogin = await _userRepository.GetByLoginAsync(updateDto.Login);
+                if (existingUserByLogin != null && existingUserByLogin.IdUsers != id)
                 {
                     return BadRequest("User with this login already exists.");
                 }
@@ -223,14 +193,59 @@ namespace FuelManagementSystem.API.Controllers
 
             user.Email = updateDto.Email;
             user.Login = updateDto.Login;
-            user.Password = updateDto.Password; // В реальном приложении пароль должен быть захэширован
             user.Note = updateDto.Note;
+            user.DateOfChange = DateTime.Now;
+            user.WhoChanged = "System";
+
+            // Обновляем пароль только если он предоставлен
+            if (!string.IsNullOrEmpty(updateDto.Password))
+            {
+                user.PasswordHash = _passwordService.HashPassword(updateDto.Password);
+            }
+
+            await _userRepository.UpdateAsync(user);
+
+            return NoContent();
+        }
+
+        // PATCH: api/user/change-password/{id}
+        [HttpPatch("change-password/{id}")]
+        public async Task<IActionResult> ChangePassword(int id, ChangePasswordDto changePasswordDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (changePasswordDto.NewPassword != changePasswordDto.ConfirmNewPassword)
+            {
+                return BadRequest("New password and confirmation password do not match.");
+            }
+
+            var user = await _userRepository.GetActiveByIdAsync(id);
+
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            // Проверка текущего пароля (если требуется)
+            // Если вы хотите проверять старый пароль, раскомментируйте следующий блок:
+            /*
+            if (!_passwordService.VerifyPassword(changePasswordDto.CurrentPassword, user.PasswordHash))
+            {
+                return BadRequest("Current password is incorrect.");
+            }
+            */
+
+            // Обновление пароля
+            user.PasswordHash = _passwordService.HashPassword(changePasswordDto.NewPassword);
             user.DateOfChange = DateTime.Now;
             user.WhoChanged = "System";
 
             await _userRepository.UpdateAsync(user);
 
-            return NoContent();
+            return Ok("Password changed successfully.");
         }
 
         // DELETE: api/user/{id} (Soft Delete)
@@ -298,13 +313,15 @@ namespace FuelManagementSystem.API.Controllers
         }
     }
 
-    // DTO для аутентификации
-    public class AuthenticateUserDto
+    // DTO для смены пароля
+    public class ChangePasswordDto
     {
-        [Required]
-        public string Email { get; set; }
+        public string? CurrentPassword { get; set; } // Может быть null, если не требуется проверка старого пароля
 
         [Required]
-        public string Password { get; set; }
+        public string NewPassword { get; set; }
+
+        [Required]
+        public string ConfirmNewPassword { get; set; }
     }
 }

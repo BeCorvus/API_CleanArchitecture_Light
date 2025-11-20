@@ -25,7 +25,7 @@ public class UpdateUserDto
 {
     public string Email { get; set; }
     public string Login { get; set; }
-    public string Password { get; set; }
+    public string Password { get; set; } // Теперь опционально - пароль меняется только если указан
     public string Note { get; set; }
 }
 

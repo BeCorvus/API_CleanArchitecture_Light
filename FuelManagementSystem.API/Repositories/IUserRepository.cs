@@ -4,10 +4,9 @@ namespace FuelManagementSystem.API.Repositories
 {
     public interface IUserRepository : IRepository<User>
     {
-        // Специфичные для User методы
-        Task<IEnumerable<User>> GetByEmailAsync(string email);
-        Task<IEnumerable<User>> GetByLoginAsync(string login);
-        Task<User> GetByEmailAndPasswordAsync(string email, string password);
+        Task<User> GetByEmailAsync(string email);
+        Task<User> GetByLoginAsync(string login);
+        Task<bool> UserExistsAsync(string email, string login);
 
         // Методы для работы с активными записями
         Task<IEnumerable<User>> GetAllActiveAsync();
