@@ -39,48 +39,26 @@ using Microsoft.AspNetCore.Authorization;
 using FuelManagementSystem.API.Services;
 using System.Reflection;
 
+using FuelManagementSystem.API.Filters;
+
 
 // Объявление класса Program
 // Уровень доступа - internal (виден в пределах моей сборки)
 internal class Program
 {
-    // Точка входа приложения
-    // private -  доступен лишь внутри класса Program
-    // static - для вызова не нужен экземпляр класса Program
-    // void - без возврата значения
-    // string[] args - параметр, содержит аргументы командной строки (переданы при запуске приложения)
     private static void Main(string[] args)
     {
-        // Создаём экземляр билдера
-        // Для конфигурации и построения приложения
-        // args - аргумент командой строки (можно использовать для конфигурации)
         var builder = WebApplication.CreateBuilder(args);
 
-        // Регистрируем (регаем) сервисы (нужны для контроллеров)
-        // Позволит использовать контроллеры в приложении
         builder.Services.AddControllers();
-
-        // Регаем сервисы для работы Swagger/OpenAPI с min API (endpoints)
-        // Для распознания Swagger-ом конечных точек в приложениях с min API
         builder.Services.AddEndpointsApiExplorer();
 
-        // Добавляем генератор Swagger. Настройка.
-        // AddSwaggerGen - метод для реги сервисов
-        // Сервисы - для генерации документации Swagger (OpenAI) для API
-        // Внутри лямбда-выражения - настройка параметров генерации
-
-        // Регаем контекст БД (ApplicationDbContext) в DI-контейнере (Dependency Injection - "внедрение зависимостей")
-        // Используем - SQL Server
-        // Строка подключения = конфигурация по ключу DefaultConnection
+        // Database
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-        // Регаем generic-репозиторий.
-        // То есть: запрос IRepository<T> -> для любого типа T - экземпляр Repository<T>
+        // Repositories
         builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-
-        // Регаем конкретный репозиторий
-        // Запрос IFuelColumnRepository -> FuelColumnRepository (область жизни - Scoped)
         builder.Services.AddScoped<IEquipmentRepository, EquipmentRepository>();
         builder.Services.AddScoped<IFuelRepository, FuelRepository>();
         builder.Services.AddScoped<IGeyserRepository, GeyserRepository>();
@@ -88,37 +66,25 @@ internal class Program
         builder.Services.AddScoped<IRoleRepository, RoleRepository>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
 
-        // Регистрация сервисов
+        // Services
         builder.Services.AddScoped<IJwtService, JwtService>();
         builder.Services.AddScoped<IPasswordService, PasswordService>();
         builder.Services.AddScoped<IEmailService, EmailService>();
 
-
         builder.Services.AddAutoMapper(typeof(Program));
 
-        // Добавляем сервисы CORS (Cross-Origin Resource Sharing) в контейнер зависимостей
-        // CORS - механизм; позволяет веб-страницам делать запросы к доменам
-        // Домены - отличны от домена, с которого они загружены (межсайтовые запросы)
-        // Метод = настройка политики CORS для приложения
+        // CORS
         builder.Services.AddCors(options =>
         {
-            // Создаёт политику CORS с именем AllowAll
-            // AllowAll - произвольное имя политики
-            // Потом - можно использовать при применении к middleware.
             options.AddPolicy("AllowAll", builder =>
             {
-                // Разрешает запросы с любого источника (домена)
-                // То есть - любой сайт может сделать запрос к моему API
-                // В продакшене - небезопасно
                 builder.AllowAnyOrigin()
-                // Разрешает все HTTP-методы (GET, POST, PUT, DELETE и т.д.)
                        .AllowAnyMethod()
-                // Разрешает все заголовки в запросе
                        .AllowAnyHeader();
             });
         });
 
-        // Конфигурация JWT аутентификации
+        // JWT Authentication
         var jwtSettings = builder.Configuration.GetSection("Jwt");
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -135,7 +101,6 @@ internal class Program
                 };
             });
 
-        // Регистрация сервисов авторизации
         builder.Services.AddAuthorization(options =>
         {
             options.FallbackPolicy = new AuthorizationPolicyBuilder()
@@ -143,7 +108,7 @@ internal class Program
                 .Build();
         });
 
-
+        // Swagger configuration
         builder.Services.AddSwaggerGen(options =>
         {
             options.SwaggerDoc("v1", new OpenApiInfo
@@ -153,89 +118,62 @@ internal class Program
                 Description = "API для системы управления топливом"
             });
 
-            // Настройка JWT в Swagger
+            // Изменяем описание для ясности
             options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
-                Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
+                Description = "Введите JWT токен. Пример: eyJhbGciOiJIUzI1NiIs...\n\n" +
+                             "⚠️ ВАЖНО: Вводите только токен, система добавит 'Bearer ' автоматически",
                 Name = "Authorization",
                 In = ParameterLocation.Header,
-                Type = SecuritySchemeType.ApiKey,
-                Scheme = "Bearer"
+                Type = SecuritySchemeType.Http, // Изменено с ApiKey на Http
+                Scheme = "bearer",
+                BearerFormat = "JWT"
             });
 
             options.AddSecurityRequirement(new OpenApiSecurityRequirement
             {
                 {
                     new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
                         {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
-                            }
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
                     },
-                    new string[] {}
+                    Array.Empty<string>()
                 }
             });
 
-            // Включение XML комментариев
-            var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-            var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-            if (File.Exists(xmlPath))
-            {
-                options.IncludeXmlComments(xmlPath);
-            }
+            // Уберите AutoBearerFilter, если он не работает
+            // options.OperationFilter<AutoBearerFilter>();
         });
 
-        // Создание экземпляра приложения из билдера. (WebApplication)
-        // Компиляция всех зареганных сервисов и настройка приложения
         var app = builder.Build();
 
-        // Проверка работы приложения в среде разработке
-        // Успех - добавление функционала Swagger
+        // CORRECT ORDER OF MIDDLEWARE
         if (app.Environment.IsDevelopment())
         {
-            // Вкл middleware для генерации Swagger-документации в формате JSON
-            // middleware будет обрабатывать запросы к /swagger/v.1.0/swagger.json
             app.UseSwagger();
-            // Вкл middleware для Swagger UI
-            // Предоставляет веб-интерфейс для взаимодействия с API
-            // По умолч - доступ по адресу /swagger
             app.UseSwaggerUI(options =>
             {
                 options.SwaggerEndpoint("/swagger/v1/swagger.json", "Fuel Management System API v1");
-                options.RoutePrefix = "swagger"; // Доступ по URL: /swagger
+                options.RoutePrefix = "swagger";
                 options.DocumentTitle = "Fuel Management System API";
+                options.InjectJavascript("/swagger/custom.js");
             });
         }
 
-        // middleware
-        // Перенаправка HTTP-запросов на HTTPS
-        // Для безопасности
         app.UseHttpsRedirection();
 
-        // Вкл CORS с политикой AllowAll (раннее настроили)
-        // Позволяет браузеру выполнять запросы к API
+        // ТОЛЬКО ОДИН РАЗ UseStaticFiles и в правильном порядке
+        app.UseStaticFiles(); // ДОЛЖНО БЫТЬ ДО UseSwaggerUI, но т.к. SwaggerUI в условии, оставляем здесь
+
         app.UseCors("AllowAll");
-
-        //
-        app.UseStaticFiles();
-        //logger.Debug("Static files middleware configured");
-
-        // middleware для аутентификации
-        // Идентифицирует пользователя/клиента по учётным данным
         app.UseAuthentication();
-
-        // middleware для авторизации
-        // Проверка прав пользователя/клиента
         app.UseAuthorization();
-
-        // Сопоставляет маршруты с контроллерами
-        // Для маршрутизации запросов к нужным методам в контроллерах
         app.MapControllers();
 
-        // Запуск приложения
-        // Начало прослушивания входящих HTTP-запросов
         app.Run();
     }
 }
