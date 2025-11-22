@@ -4,6 +4,7 @@ using FuelManagementSystem.API.Models;
 using FuelManagementSystem.API.Repositories;
 using FuelManagementSystem.API.Services;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FuelManagementSystem.API.Controllers
 {
@@ -21,6 +22,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // GET: api/user
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetAllUsers()
         {
@@ -38,6 +40,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // GET: api/user/{id}
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<UserDto>> GetUserById(int id)
         {
@@ -60,40 +63,53 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // GET: api/user/email/{email}
+        [Authorize]
         [HttpGet("email/{email}")]
-        public async Task<ActionResult<IEnumerable<UserDto>>> GetUserByEmail(string email)
+        public async Task<ActionResult<UserDto>> GetUserByEmail(string email) // Изменен возвращаемый тип
         {
-            var users = await _userRepository.GetByEmailAsync(email);
+            var user = await _userRepository.GetByEmailAsync(email);
 
-            var userDtos = users.Select(u => new UserDto
+            if (user == null)
             {
-                Id = u.IdUsers,
-                Email = u.Email,
-                Login = u.Login,
-                Note = u.Note
-            });
+                return NotFound();
+            }
 
-            return Ok(userDtos);
+            var userDto = new UserDto
+            {
+                Id = user.IdUsers,
+                Email = user.Email,
+                Login = user.Login,
+                Note = user.Note
+            };
+
+            return Ok(userDto);
         }
 
         // GET: api/user/login/{login}
+        [Authorize]
         [HttpGet("login/{login}")]
-        public async Task<ActionResult<IEnumerable<UserDto>>> GetUserByLogin(string login)
+        public async Task<ActionResult<UserDto>> GetUserByLogin(string login) // Изменен возвращаемый тип
         {
-            var users = await _userRepository.GetByLoginAsync(login);
+            var user = await _userRepository.GetByLoginAsync(login);
 
-            var userDtos = users.Select(u => new UserDto
+            if (user == null)
             {
-                Id = u.IdUsers,
-                Email = u.Email,
-                Login = u.Login,
-                Note = u.Note
-            });
+                return NotFound();
+            }
 
-            return Ok(userDtos);
+            var userDto = new UserDto
+            {
+                Id = user.IdUsers,
+                Email = user.Email,
+                Login = user.Login,
+                Note = user.Note
+            };
+
+            return Ok(userDto);
         }
 
         // GET: api/user/admin
+        [Authorize]
         [HttpGet("admin")]
         public async Task<ActionResult<IEnumerable<UserAdminDto>>> GetAllUsersForAdmin()
         {
@@ -135,7 +151,7 @@ namespace FuelManagementSystem.API.Controllers
             {
                 Email = createDto.Email,
                 Login = createDto.Login,
-                PasswordHash = _passwordService.HashPassword(createDto.Password), // Хешируем пароль
+                PasswordHash = _passwordService.HashPassword(createDto.Password),
                 Note = createDto.Note,
                 DateOfRecording = DateTime.Now,
                 WhoRecorded = "System",
@@ -229,15 +245,6 @@ namespace FuelManagementSystem.API.Controllers
                 return NotFound("User not found.");
             }
 
-            // Проверка текущего пароля (если требуется)
-            // Если вы хотите проверять старый пароль, раскомментируйте следующий блок:
-            /*
-            if (!_passwordService.VerifyPassword(changePasswordDto.CurrentPassword, user.PasswordHash))
-            {
-                return BadRequest("Current password is incorrect.");
-            }
-            */
-
             // Обновление пароля
             user.PasswordHash = _passwordService.HashPassword(changePasswordDto.NewPassword);
             user.DateOfChange = DateTime.Now;
@@ -311,17 +318,33 @@ namespace FuelManagementSystem.API.Controllers
 
             return Ok(userAdminDto);
         }
+
+        // Добавляем метод для проверки доступности email/login
+        [AllowAnonymous] // Этот метод должен быть доступен без авторизации
+        [HttpPost("check-availability")]
+        public async Task<ActionResult> CheckAvailability(CheckAvailabilityDto checkDto)
+        {
+            var exists = await _userRepository.UserExistsAsync(checkDto.Email, checkDto.Login);
+            return Ok(new { available = !exists });
+        }
     }
 
     // DTO для смены пароля
     public class ChangePasswordDto
     {
-        public string? CurrentPassword { get; set; } // Может быть null, если не требуется проверка старого пароля
+        public string? CurrentPassword { get; set; }
 
         [Required]
         public string NewPassword { get; set; }
 
         [Required]
         public string ConfirmNewPassword { get; set; }
+    }
+
+    // DTO для проверки доступности
+    public class CheckAvailabilityDto
+    {
+        public string Email { get; set; }
+        public string Login { get; set; }
     }
 }

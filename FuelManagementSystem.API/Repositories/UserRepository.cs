@@ -51,5 +51,11 @@ namespace FuelManagementSystem.API.Repositories
                 await UpdateAsync(user);
             }
         }
+
+        public async Task<User> GetByResetTokenAsync(string resetToken)
+        {
+            return await _context.Users
+                .FirstOrDefaultAsync(u => u.ResetToken == resetToken && u.ResetTokenExpiry > DateTime.UtcNow);
+        }
     }
 }

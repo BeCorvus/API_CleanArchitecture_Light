@@ -1,4 +1,6 @@
-﻿namespace FuelManagementSystem.API.DTO
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace FuelManagementSystem.API.DTO
 {
     public class LoginDto
     {
@@ -26,6 +28,27 @@
     {
         public string CurrentPassword { get; set; }
         public string NewPassword { get; set; }
+        public string ConfirmNewPassword { get; set; }
+    }
+
+    public class ForgotPasswordDto
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; }
+    }
+
+    public class ResetPasswordDto
+    {
+        [Required]
+        public string Token { get; set; }
+
+        [Required]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters long")]
+        public string NewPassword { get; set; }
+
+        [Required]
+        [Compare("NewPassword", ErrorMessage = "Passwords do not match")]
         public string ConfirmNewPassword { get; set; }
     }
 }

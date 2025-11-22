@@ -290,7 +290,7 @@ public partial class ApplicationDbContext : DbContext
             entity.Property(e => e.Email).HasMaxLength(255);
             entity.Property(e => e.Login).HasMaxLength(255);
             entity.Property(e => e.Note).HasMaxLength(255);
-            entity.Property(e => e.Password).HasMaxLength(255);
+            entity.Property(e => e.PasswordHash).HasMaxLength(255);
             entity.Property(e => e.WhoChanged)
                 .HasMaxLength(255)
                 .HasColumnName("Who_changed");

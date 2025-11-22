@@ -3,9 +3,11 @@ using FuelManagementSystem.API.DTO;
 using FuelManagementSystem.API.Models;
 using FuelManagementSystem.API.Repositories;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FuelManagementSystem.API.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class GeyserController : ControllerBase

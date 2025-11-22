@@ -35,6 +35,8 @@ using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
+using FuelManagementSystem.API.Services;
 
 
 // Объявление класса Program
@@ -94,6 +96,11 @@ internal class Program
         builder.Services.AddScoped<IRoleRepository, RoleRepository>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
 
+        // Регистрация сервисов
+        builder.Services.AddScoped<IJwtService, JwtService>();
+        builder.Services.AddScoped<IPasswordService, PasswordService>();
+        builder.Services.AddScoped<IEmailService, EmailService>();
+
 
         builder.Services.AddAutoMapper(typeof(Program));
 
@@ -137,7 +144,12 @@ internal class Program
             });
 
         // Регистрация сервисов авторизации
-        builder.Services.AddAuthorization();
+        builder.Services.AddAuthorization(options =>
+        {
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+        });
 
         // Создание экземпляра приложения из билдера. (WebApplication)
         // Компиляция всех зареганных сервисов и настройка приложения

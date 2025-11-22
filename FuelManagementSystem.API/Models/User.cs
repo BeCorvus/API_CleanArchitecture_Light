@@ -15,6 +15,8 @@ public partial class User : ISoftDelete
     public string? WhoChanged { get; set; }
     public string? Note { get; set; }
     public DateTime? WhenDeleted { get; set; }
+    public string? ResetToken { get; set; }
+    public DateTime? ResetTokenExpiry { get; set; }
 
 
     public virtual ICollection<UsersRole> UsersRoles { get; set; } = new List<UsersRole>();
