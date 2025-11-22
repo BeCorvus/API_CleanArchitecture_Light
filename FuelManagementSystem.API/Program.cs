@@ -37,6 +37,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using FuelManagementSystem.API.Services;
+using System.Reflection;
 
 
 // Объявление класса Program
@@ -67,15 +68,6 @@ internal class Program
         // AddSwaggerGen - метод для реги сервисов
         // Сервисы - для генерации документации Swagger (OpenAI) для API
         // Внутри лямбда-выражения - настройка параметров генерации
-        builder.Services.AddSwaggerGen(c =>
-        {
-            //Создание документа Swagger c:
-            // v1 - название версии API (может быть любым, но обычно версия)
-            // OpenApiInfo - класс с метаданными API
-            //      Title - название API, кот. видно в интерфейсе Swagger UI
-            //      Version - версия API
-            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Fuel Consumpt API", Version = "v1" });
-        });
 
         // Регаем контекст БД (ApplicationDbContext) в DI-контейнере (Dependency Injection - "внедрение зависимостей")
         // Используем - SQL Server
@@ -151,6 +143,50 @@ internal class Program
                 .Build();
         });
 
+
+        builder.Services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = "Fuel Management System API",
+                Version = "v1",
+                Description = "API для системы управления топливом"
+            });
+
+            // Настройка JWT в Swagger
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
+                Name = "Authorization",
+                In = ParameterLocation.Header,
+                Type = SecuritySchemeType.ApiKey,
+                Scheme = "Bearer"
+            });
+
+            options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                    },
+                    new string[] {}
+                }
+            });
+
+            // Включение XML комментариев
+            var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+            if (File.Exists(xmlPath))
+            {
+                options.IncludeXmlComments(xmlPath);
+            }
+        });
+
         // Создание экземпляра приложения из билдера. (WebApplication)
         // Компиляция всех зареганных сервисов и настройка приложения
         var app = builder.Build();
@@ -165,7 +201,12 @@ internal class Program
             // Вкл middleware для Swagger UI
             // Предоставляет веб-интерфейс для взаимодействия с API
             // По умолч - доступ по адресу /swagger
-            app.UseSwaggerUI();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "Fuel Management System API v1");
+                options.RoutePrefix = "swagger"; // Доступ по URL: /swagger
+                options.DocumentTitle = "Fuel Management System API";
+            });
         }
 
         // middleware
