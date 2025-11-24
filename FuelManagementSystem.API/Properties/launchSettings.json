@@ -5,8 +5,8 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "launchUrl": "swagger",
-      //"launchUrl": "Warhammer-v.2.0.html",
+      //"launchUrl": "swagger",
+      "launchUrl": "Standart.html",
       "applicationUrl": "http://localhost:5077",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

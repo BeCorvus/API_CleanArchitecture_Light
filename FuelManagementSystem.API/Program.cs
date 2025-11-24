@@ -160,7 +160,6 @@ internal class Program
                 options.SwaggerEndpoint("/swagger/v1/swagger.json", "Fuel Management System API v1");
                 options.RoutePrefix = "swagger";
                 options.DocumentTitle = "Fuel Management System API";
-                options.InjectJavascript("/swagger/custom.js");
             });
         }
 
@@ -169,10 +168,21 @@ internal class Program
         // ТОЛЬКО ОДИН РАЗ UseStaticFiles и в правильном порядке
         app.UseStaticFiles(); // ДОЛЖНО БЫТЬ ДО UseSwaggerUI, но т.к. SwaggerUI в условии, оставляем здесь
 
+        app.UseRouting();
+
         app.UseCors("AllowAll");
         app.UseAuthentication();
         app.UseAuthorization();
+
         app.MapControllers();
+
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+
+            // Fallback для SPA - все неизвестные маршруты перенаправляются на index.html
+            endpoints.MapFallbackToFile("index.html");
+        });
 
         app.Run();
     }
