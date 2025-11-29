@@ -165,7 +165,7 @@ internal class Program
 
         app.UseHttpsRedirection();
 
-        // ТОЛЬКО ОДИН РАЗ UseStaticFiles и в правильном порядке
+        app.UseDefaultFiles();
         app.UseStaticFiles(); // ДОЛЖНО БЫТЬ ДО UseSwaggerUI, но т.к. SwaggerUI в условии, оставляем здесь
 
         app.UseRouting();
@@ -179,9 +179,7 @@ internal class Program
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
-
-            // Fallback для SPA - все неизвестные маршруты перенаправляются на index.html
-            endpoints.MapFallbackToFile("index.html");
+            endpoints.MapFallbackToFile("/index.html"); // Для SPA маршрутизации
         });
 
         app.Run();

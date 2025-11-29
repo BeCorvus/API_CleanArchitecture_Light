@@ -213,9 +213,18 @@
     </style>
 </head>
 <body>
+    <script>
+        // Проверка, если пользователь уже авторизован - перенаправляем на dashboard
+        document.addEventListener('DOMContentLoaded', function () {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                window.location.href = '/index.html';
+            }
+        });
+    </script>
     <div class="login-container">
         <h1 class="login-title">Система доступа</h1>
-        
+
         <!-- Переключатель форм -->
         <div class="form-tabs">
             <button class="tab-btn active" data-tab="login">Вход</button>
@@ -232,7 +241,7 @@
                 <label for="loginUsername">Имя пользователя или Email</label>
                 <input type="text" id="loginUsername" class="form-control" placeholder="Введите имя пользователя или email" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="loginPassword">Пароль</label>
                 <div class="password-container">
@@ -242,9 +251,9 @@
             </div>
 
             <button type="submit" class="btn">Войти</button>
-            
+
             <div class="links">
-                <a onclick="showTab('forgot')">Забыли пароль?</a> | 
+                <a onclick="showTab('forgot')">Забыли пароль?</a> |
                 <a onclick="showTab('register')">Создать аккаунт</a>
             </div>
         </form>
@@ -260,7 +269,7 @@
                 <label for="regEmail">Email</label>
                 <input type="email" id="regEmail" class="form-control" placeholder="Введите ваш email" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="regPassword">Пароль</label>
                 <div class="password-container">
@@ -281,7 +290,7 @@
             </div>
 
             <button type="submit" class="btn">Зарегистрироваться</button>
-            
+
             <div class="links">
                 Уже есть аккаунт? <a onclick="showTab('login')">Войти</a>
             </div>
@@ -295,7 +304,7 @@
             </div>
 
             <button type="submit" class="btn">Восстановить пароль</button>
-            
+
             <div class="links">
                 <a onclick="showTab('login')">Вернуться к входу</a>
             </div>
@@ -309,18 +318,18 @@
             document.querySelectorAll('.auth-form').forEach(form => {
                 form.classList.remove('active');
             });
-            
+
             // Деактивируем все кнопки
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            
+
             // Показываем выбранную форму
             document.getElementById(tabName + 'Form').classList.add('active');
-            
+
             // Активируем выбранную кнопку
             document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-            
+
             // Скрываем сообщения
             hideMessage();
         }
@@ -336,7 +345,7 @@
         function togglePassword(inputId) {
             const passwordInput = document.getElementById(inputId);
             const toggleIcon = passwordInput.parentNode.querySelector('.toggle-password');
-            
+
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
                 toggleIcon.textContent = '🔒';
@@ -350,14 +359,14 @@
         function checkPasswordStrength() {
             const password = document.getElementById('regPassword').value;
             const strengthBar = document.getElementById('strengthBar');
-            
+
             let strength = 0;
-            
+
             if (password.length >= 6) strength++;
             if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength++;
             if (password.match(/\d/)) strength++;
             if (password.match(/[^a-zA-Z\d]/)) strength++;
-            
+
             strengthBar.className = 'strength-bar';
             if (strength <= 1) {
                 strengthBar.classList.add('strength-weak');
@@ -374,7 +383,7 @@
             messageEl.textContent = text;
             messageEl.className = `message ${type}`;
             messageEl.style.display = 'block';
-            
+
             setTimeout(() => {
                 hideMessage();
             }, 5000);
@@ -386,11 +395,11 @@
         }
 
         // Обработка формы входа
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const username = document.getElementById('loginUsername').value;
             const password = document.getElementById('loginPassword').value;
-            
+
             // Имитация проверки (в реальном приложении здесь был бы запрос к серверу)
             if (username && password) {
                 showMessage('Вход выполнен успешно!', 'success');
@@ -400,30 +409,30 @@
         });
 
         // Обработка формы регистрации
-        document.getElementById('registerForm').addEventListener('submit', function(e) {
+        document.getElementById('registerForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const username = document.getElementById('regUsername').value;
             const email = document.getElementById('regEmail').value;
             const password = document.getElementById('regPassword').value;
             const confirmPassword = document.getElementById('regConfirmPassword').value;
-            
+
             if (!username || !email || !password || !confirmPassword) {
                 showMessage('Пожалуйста, заполните все поля', 'error');
                 return;
             }
-            
+
             if (password !== confirmPassword) {
                 showMessage('Пароли не совпадают', 'error');
                 return;
             }
-            
+
             if (password.length < 6) {
                 showMessage('Пароль должен содержать минимум 6 символов', 'error');
                 return;
             }
-            
+
             showMessage('Регистрация прошла успешно! Проверьте вашу почту для подтверждения.', 'success');
-            
+
             // Очистка формы и переход к входу
             setTimeout(() => {
                 this.reset();
@@ -433,17 +442,17 @@
         });
 
         // Обработка формы восстановления пароля
-        document.getElementById('forgotForm').addEventListener('submit', function(e) {
+        document.getElementById('forgotForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const email = document.getElementById('forgotEmail').value;
-            
+
             if (!email) {
                 showMessage('Пожалуйста, введите ваш email', 'error');
                 return;
             }
-            
+
             showMessage('Инструкции по восстановлению пароля отправлены на ваш email', 'success');
-            
+
             // Очистка формы и переход к входу
             setTimeout(() => {
                 this.reset();
@@ -451,5 +460,7 @@
             }, 2000);
         });
     </script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
 </body>
 </html>
