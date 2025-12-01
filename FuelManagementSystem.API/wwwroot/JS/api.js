@@ -74,19 +74,19 @@ class ApiService {
     }
 
     // Аутентификация
-    async login(credentials) {
-        return await this.request('/Auth/login', {
+    async login(loginData) {
+        return await this.request('/auth/login', {
             method: 'POST',
-            body: credentials
+            body: loginData
         });
-    }
+    },
 
     async register(userData) {
-        return await this.request('/Auth/register', {
+        return await this.request('/auth/register', {
             method: 'POST',
             body: userData
         });
-    }
+    },
 
     // CRUD операции для Equipment
     async getEquipment() {

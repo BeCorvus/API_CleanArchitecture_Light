@@ -92,17 +92,29 @@ namespace FuelManagementSystem.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            // Поиск пользователя по email
-            var user = await _userRepository.GetByEmailAsync(loginDto.Email);
+            User? user = null;
+
+            // Автоматически определяем тип ввода
+            if (loginDto.Login.Contains("@"))
+            {
+                // Если содержит @ - считаем email
+                user = await _userRepository.GetByEmailAsync(loginDto.Login);
+            }
+            else
+            {
+                // Иначе считаем username
+                user = await _userRepository.GetByUsernameAsync(loginDto.Login);
+            }
+
             if (user == null)
             {
-                return Unauthorized("Invalid email or password.");
+                return Unauthorized("Неверные учетные данные.");
             }
 
             // Проверка пароля
             if (!_passwordService.VerifyPassword(loginDto.Password, user.PasswordHash))
             {
-                return Unauthorized("Invalid email or password.");
+                return Unauthorized("Неверные учетные данные.");
             }
 
             // Генерация токена
@@ -286,5 +298,15 @@ namespace FuelManagementSystem.API.Controllers
                          .Replace("/", "")
                          .Replace("=", "");
         }
+    }
+
+    // НОВЫЙ DTO для входа
+    public class LoginRequestDto
+    {
+        [Required]
+        public string Login { get; set; } = string.Empty; // Может быть email или username
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
     }
 }

@@ -33,13 +33,16 @@ using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using FuelManagementSystem.API.Services;
 using System.Reflection;
 
 using FuelManagementSystem.API.Filters;
+
+using Microsoft.AspNetCore.StaticFiles; // Для UseStaticFiles
+using Microsoft.AspNetCore.Http; // Для UseEndpoints
+using System.Text; // Для Encoding
+using Microsoft.IdentityModel.Tokens; // Для SymmetricSecurityKey
 
 
 // Объявление класса Program

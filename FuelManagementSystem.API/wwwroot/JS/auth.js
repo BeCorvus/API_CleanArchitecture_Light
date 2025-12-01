@@ -24,15 +24,28 @@ function hideMessage() {
 // Обработка формы входа
 document.getElementById('loginForm').addEventListener('submit', async function (e) {
     e.preventDefault();
-    const username = document.getElementById('loginUsername').value;
+    const loginInput = document.getElementById('loginUsername').value;
     const password = document.getElementById('loginPassword').value;
 
-    if (username && password) {
+    if (loginInput && password) {
         try {
-            const result = await apiService.login({
-                username: username,
-                password: password
-            });
+            // Определяем, что ввел пользователь - email или username
+            const isEmail = loginInput.includes('@');
+
+            // Подготавливаем данные для отправки в зависимости от типа ввода
+            const loginData = isEmail
+                ? {
+                    Email: loginInput,  // Отправляем как Email
+                    Password: password
+                }
+                : {
+                    UserName: loginInput,  // Отправляем как UserName
+                    Password: password
+                };
+
+            console.log('Отправляемые данные для входа:', loginData); // Для отладки
+
+            const result = await apiService.login(loginData);
 
             if (result && result.token) {
                 apiService.setToken(result.token);
@@ -79,10 +92,14 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 
     try {
         const result = await apiService.register({
-            username: username,
-            email: email,
-            password: password
+            Email: email,           // Важно: именно Email с большой буквы
+            Login: username,        // Важно: именно Login с большой буквы
+            Password: password,
+            ConfirmPassword: confirmPassword,
+            Note: ""                // Можно оставить пустым или добавить поле в форму
         });
+
+        console.log('Результат регистрации:', result); // Для отладки
 
         if (result && result.token) {
             apiService.setToken(result.token);
@@ -111,12 +128,21 @@ document.getElementById('forgotForm').addEventListener('submit', async function 
         return;
     }
 
-    // Здесь можно добавить вызов API для восстановления пароля
-    showMessage('Функция восстановления пароля в разработке', 'success');
+    try {
+        // Вызов API для восстановления пароля
+        const result = await apiService.request('/auth/forgot-password', {
+            method: 'POST',
+            body: { Email: email }
+        });
 
-    // Очистка формы и переход к входу
-    setTimeout(() => {
-        this.reset();
-        showTab('login');
-    }, 2000);
+        showMessage('Инструкции по восстановлению пароля отправлены на ваш email', 'success');
+
+        // Очистка формы и переход к входу
+        setTimeout(() => {
+            this.reset();
+            showTab('login');
+        }, 2000);
+    } catch (error) {
+        showMessage('Ошибка при восстановлении пароля: ' + error.message, 'error');
+    }
 });

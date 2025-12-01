@@ -15,6 +15,12 @@ namespace FuelManagementSystem.API.Repositories
                 .FirstOrDefaultAsync(u => u.Email == email && u.WhenDeleted == null);
         }
 
+        public async Task<User?> GetByUsernameAsync(string username)
+        {
+            return await _context.Users
+                .FirstOrDefaultAsync(u => u.Login == username && u.WhenDeleted == null);
+        }
+
         public async Task<User> GetByLoginAsync(string login)
         {
             return await _context.Users
