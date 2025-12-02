@@ -5,7 +5,7 @@ namespace FuelManagementSystem.API.DTO
     public class LoginDto
     {
         [Required(ErrorMessage = "Email или имя пользователя обязательно")]
-        [Display(Name = "Email/Username")]
+        [Display(Name = "Логин")]
         public string Login { get; set; } = string.Empty; // Единое поле для email/username
 
         [Required(ErrorMessage = "Пароль обязателен")]

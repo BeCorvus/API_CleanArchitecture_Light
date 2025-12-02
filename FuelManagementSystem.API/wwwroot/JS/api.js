@@ -23,6 +23,13 @@ class ApiService {
     async request(endpoint, options = {}) {
         const url = `${API_BASE_URL}${endpoint}`;
 
+        console.log('📤 API Request:', {
+            url: url,
+            method: options.method || 'GET',
+            body: options.body,
+            headers: options.headers
+        }); // Подробное логирование
+
         const config = {
             headers: {
                 'Content-Type': 'application/json',
@@ -36,13 +43,19 @@ class ApiService {
             config.headers['Authorization'] = `Bearer ${this.token}`;
         }
 
-        // Добавляем тело запроса если есть
         if (options.body) {
             config.body = JSON.stringify(options.body);
+            console.log('📦 Request body (stringified):', config.body); // Логируем строку
         }
 
         try {
             const response = await fetch(url, config);
+
+            console.log('📥 API Response:', {
+                status: response.status,
+                statusText: response.statusText,
+                url: response.url
+            });
 
             if (response.status === 401) {
                 // Неавторизован - перенаправляем на логин
@@ -53,6 +66,7 @@ class ApiService {
 
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error('❌ API Error Response:', errorText);
                 throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
             }
 
@@ -61,14 +75,11 @@ class ApiService {
                 return { success: true, message: 'Удалено успешно' };
             }
 
-            // Пытаемся распарсить JSON
-            try {
-                return await response.json();
-            } catch (e) {
-                return { success: true, message: 'Операция выполнена успешно' };
-            }
+            const responseData = await response.json();
+            console.log('✅ API Success Response:', responseData);
+            return responseData;
         } catch (error) {
-            console.error('API request failed:', error);
+            console.error('❌ API request failed:', error);
             throw error;
         }
     }
@@ -79,14 +90,14 @@ class ApiService {
             method: 'POST',
             body: loginData
         });
-    },
+    }
 
     async register(userData) {
         return await this.request('/auth/register', {
             method: 'POST',
             body: userData
         });
-    },
+    }
 
     // CRUD операции для Equipment
     async getEquipment() {

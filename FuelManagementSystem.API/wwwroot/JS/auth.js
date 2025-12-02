@@ -24,28 +24,28 @@ function hideMessage() {
 // Обработка формы входа
 document.getElementById('loginForm').addEventListener('submit', async function (e) {
     e.preventDefault();
-    const loginInput = document.getElementById('loginUsername').value;
+    const loginInput = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value;
+
+    console.log('🔄 Login attempt:', {
+        loginInput: loginInput,
+        passwordLength: password.length
+    });
 
     if (loginInput && password) {
         try {
-            // Определяем, что ввел пользователь - email или username
-            const isEmail = loginInput.includes('@');
+            // ИЗМЕНЕНИЕ: Отправляем Login вместо Email/UserName
+            const loginData = {
+                Login: loginInput,      // ← ИЗМЕНЕНИЕ ЗДЕСЬ
+                Password: password
+            };
 
-            // Подготавливаем данные для отправки в зависимости от типа ввода
-            const loginData = isEmail
-                ? {
-                    Email: loginInput,  // Отправляем как Email
-                    Password: password
-                }
-                : {
-                    UserName: loginInput,  // Отправляем как UserName
-                    Password: password
-                };
-
-            console.log('Отправляемые данные для входа:', loginData); // Для отладки
+            console.log('📤 Отправляемые данные для входа:', loginData);
+            console.log('📤 JSON строкой:', JSON.stringify(loginData));
 
             const result = await apiService.login(loginData);
+
+            console.log('📥 Результат входа:', result);
 
             if (result && result.token) {
                 apiService.setToken(result.token);
@@ -60,7 +60,7 @@ document.getElementById('loginForm').addEventListener('submit', async function (
             }
         } catch (error) {
             showMessage('Ошибка при входе в систему: ' + error.message, 'error');
-            console.error('Login error:', error);
+            console.error('❌ Login error:', error);
         }
     } else {
         showMessage('Пожалуйста, заполните все поля', 'error');
@@ -146,3 +146,36 @@ document.getElementById('forgotForm').addEventListener('submit', async function 
         showMessage('Ошибка при восстановлении пароля: ' + error.message, 'error');
     }
 });
+
+// Временная функция для тестирования API
+async function testLogin() {
+    try {
+        console.log('🧪 Тестирование API...');
+
+        // Тест 1: Прямой fetch запрос
+        const testData = {
+            Login: "test@example.com",
+            Password: "password123"
+        };
+
+        console.log('🧪 Тестовые данные:', testData);
+
+        const response = await fetch(window.location.origin + '/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(testData)
+        });
+
+        console.log('🧪 Response status:', response.status);
+        console.log('🧪 Response text:', await response.text());
+
+    } catch (error) {
+        console.error('❌ Test error:', error);
+    }
+}
+
+// Добавьте кнопку для тестирования в консоли
+console.log('Для тестирования API введите: testLogin()');
+window.testLogin = testLogin;
