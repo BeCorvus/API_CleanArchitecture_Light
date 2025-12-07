@@ -27,25 +27,25 @@ document.getElementById('loginForm').addEventListener('submit', async function (
     const loginInput = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value;
 
-    console.log('🔄 Login attempt:', {
+    console.log('Login attempt:', {
         loginInput: loginInput,
         passwordLength: password.length
     });
 
     if (loginInput && password) {
         try {
-            // ИЗМЕНЕНИЕ: Отправляем Login вместо Email/UserName
+
             const loginData = {
-                Login: loginInput,      // ← ИЗМЕНЕНИЕ ЗДЕСЬ
+                Login: loginInput,
                 Password: password
             };
 
-            console.log('📤 Отправляемые данные для входа:', loginData);
-            console.log('📤 JSON строкой:', JSON.stringify(loginData));
+            console.log('Отправляемые данные для входа:', loginData);
+            console.log('JSON строкой:', JSON.stringify(loginData));
 
             const result = await apiService.login(loginData);
 
-            console.log('📥 Результат входа:', result);
+            console.log('Результат входа:', result);
 
             if (result && result.token) {
                 apiService.setToken(result.token);
@@ -53,14 +53,14 @@ document.getElementById('loginForm').addEventListener('submit', async function (
 
                 // Перенаправляем на главную страницу
                 setTimeout(() => {
-                    window.location.href = '/index.html';
+                    window.location.href = 'index.html';
                 }, 1000);
             } else {
                 showMessage('Ошибка входа: неверные учетные данные', 'error');
             }
         } catch (error) {
             showMessage('Ошибка при входе в систему: ' + error.message, 'error');
-            console.error('❌ Login error:', error);
+            console.error('Login error:', error);
         }
     } else {
         showMessage('Пожалуйста, заполните все поля', 'error');
@@ -92,11 +92,11 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 
     try {
         const result = await apiService.register({
-            Email: email,           // Важно: именно Email с большой буквы
-            Login: username,        // Важно: именно Login с большой буквы
+            Email: email,
+            Login: username,
             Password: password,
             ConfirmPassword: confirmPassword,
-            Note: ""                // Можно оставить пустым или добавить поле в форму
+            Note: ""
         });
 
         console.log('Результат регистрации:', result); // Для отладки
@@ -107,7 +107,7 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 
             // Перенаправляем на главную страницу
             setTimeout(() => {
-                window.location.href = '/index.html';
+                window.location.href = 'index.html';
             }, 1000);
         } else {
             showMessage('Ошибка регистрации', 'error');
@@ -146,36 +146,3 @@ document.getElementById('forgotForm').addEventListener('submit', async function 
         showMessage('Ошибка при восстановлении пароля: ' + error.message, 'error');
     }
 });
-
-// Временная функция для тестирования API
-async function testLogin() {
-    try {
-        console.log('🧪 Тестирование API...');
-
-        // Тест 1: Прямой fetch запрос
-        const testData = {
-            Login: "test@example.com",
-            Password: "password123"
-        };
-
-        console.log('🧪 Тестовые данные:', testData);
-
-        const response = await fetch(window.location.origin + '/api/auth/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(testData)
-        });
-
-        console.log('🧪 Response status:', response.status);
-        console.log('🧪 Response text:', await response.text());
-
-    } catch (error) {
-        console.error('❌ Test error:', error);
-    }
-}
-
-// Добавьте кнопку для тестирования в консоли
-console.log('Для тестирования API введите: testLogin()');
-window.testLogin = testLogin;

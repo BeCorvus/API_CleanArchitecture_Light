@@ -112,12 +112,20 @@
     </style>
 </head>
 <body>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                window.location.href = 'login.html';
+            }
+        });
+    </script>
     <div class="dashboard">
         <div class="dashboard-header">
-            <h1>🏭 Система управления топливом</h1>
+            <h1>Система управления топливом</h1>
             <div class="user-info">
-                <span id="userBtn">👤 Пользователь</span>
-                <button class="crud-btn logout-btn" onclick="logout()">🚪 Выйти</button>
+                <span id="userBtn">Пользователь</span>
+                <button class="crud-btn logout-btn" onclick="logout()">Выйти</button>
             </div>
         </div>
 

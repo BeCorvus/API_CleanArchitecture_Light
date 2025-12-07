@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 async function checkAuth() {
     const token = localStorage.getItem('authToken');
     if (!token) {
-        window.location.href = '/login.html';
+        window.location.href = 'login.html';
         return;
     }
 
@@ -46,7 +46,7 @@ async function loadStats() {
 function logout() {
     if (confirm('Вы уверены, что хотите выйти?')) {
         apiService.clearToken();
-        window.location.href = '/login.html';
+        window.location.href = 'login.html';
     }
 }
 
