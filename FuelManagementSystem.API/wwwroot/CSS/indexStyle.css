@@ -6,7 +6,7 @@
 }
 
 body {
-    background: linear-gradient(135deg, #05576b 0%, #5ed9ff 100%);
+    background: #968283;
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -205,14 +205,15 @@ body {
 }
 
 .dashboard {
-    max-width: 1200px;
+    min-width: 1300px;
+    /* max-width: 1300px; */
     margin: 0 auto;
     padding: 20px;
 }
 
 .dashboard-header {
     display: flex;
-    justify-content: between;
+    justify-content: space-between;
     align-items: center;
     margin-bottom: 30px;
     padding-bottom: 20px;
@@ -222,7 +223,7 @@ body {
 .user-info {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 20px;
 }
 
 .crud-section {
@@ -242,7 +243,7 @@ body {
 
 .crud-btn {
     padding: 12px 20px;
-    background: linear-gradient(135deg, #061f8a 0%, #9656d6 100%);
+    background: rgba(66, 74, 120, 0.9);
     border: none;
     border-radius: 8px;
     color: white;
@@ -258,7 +259,7 @@ body {
 }
 
 .logout-btn {
-    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    background: #c41a07;
 }
 
 .api-output {
