@@ -1,0 +1,204 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e1e1e1;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .crud-section {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .crud-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .crud-btn {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #061f8a 0%, #9656d6 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+            .crud-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            }
+
+        .logout-btn {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .api-output {
+            background: #f8f9fa;
+            border: 1px solid #e1e1e1;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .section-title {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #061f8a;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                window.location.href = 'login.html';
+            }
+        });
+    </script>
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>Система управления топливом</h1>
+            <div class="user-info">
+                <span id="userBtn">Пользователь</span>
+                <button class="crud-btn logout-btn" onclick="logout()">Выйти</button>
+            </div>
+        </div>
+
+        <!-- Статистика -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Оборудование</div>
+                <div class="stat-value" id="equipmentCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Топливо</div>
+                <div class="stat-value" id="fuelCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Гейзеры</div>
+                <div class="stat-value" id="geyserCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Ремонты</div>
+                <div class="stat-value" id="repairCount">0</div>
+            </div>
+        </div>
+
+        <!-- CRUD операции для Equipment -->
+        <div class="crud-section">
+            <h2 class="section-title">🏗️ Управление оборудованием</h2>
+            <div class="crud-actions">
+                <button class="crud-btn" onclick="getEquipment()">📋 Получить оборудование</button>
+                <button class="crud-btn" onclick="createEquipment()">➕ Добавить оборудование</button>
+                <button class="crud-btn" onclick="updateEquipment()">✏️ Обновить оборудование</button>
+                <button class="crud-btn" onclick="deleteEquipment()">🗑️ Удалить оборудование</button>
+            </div>
+            <div id="equipmentOutput" class="api-output"></div>
+        </div>
+
+        <!-- CRUD операции для Fuel -->
+        <div class="crud-section">
+            <h2 class="section-title">⛽ Управление топливом</h2>
+            <div class="crud-actions">
+                <button class="crud-btn" onclick="getFuel()">📋 Получить топливо</button>
+                <button class="crud-btn" onclick="createFuel()">➕ Добавить топливо</button>
+                <button class="crud-btn" onclick="updateFuel()">✏️ Обновить топливо</button>
+                <button class="crud-btn" onclick="deleteFuel()">🗑️ Удалить топливо</button>
+            </div>
+            <div id="fuelOutput" class="api-output"></div>
+        </div>
+
+        <!-- CRUD операции для Geyser -->
+        <div class="crud-section">
+            <h2 class="section-title">🔥 Управление гейзерами</h2>
+            <div class="crud-actions">
+                <button class="crud-btn" onclick="getGeysers()">📋 Получить гейзеры</button>
+                <button class="crud-btn" onclick="createGeyser()">➕ Добавить гейзер</button>
+                <button class="crud-btn" onclick="updateGeyser()">✏️ Обновить гейзер</button>
+                <button class="crud-btn" onclick="deleteGeyser()">🗑️ Удалить гейзер</button>
+            </div>
+            <div id="geyserOutput" class="api-output"></div>
+        </div>
+
+        <!-- CRUD операции для Repair -->
+        <div class="crud-section">
+            <h2 class="section-title">🔧 Управление ремонтами</h2>
+            <div class="crud-actions">
+                <button class="crud-btn" onclick="getRepairs()">📋 Получить ремонты</button>
+                <button class="crud-btn" onclick="createRepair()">➕ Добавить ремонт</button>
+                <button class="crud-btn" onclick="updateRepair()">✏️ Обновить ремонт</button>
+                <button class="crud-btn" onclick="deleteRepair()">🗑️ Удалить ремонт</button>
+            </div>
+            <div id="repairOutput" class="api-output"></div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,401 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using FuelManagementSystem.API.DTO;
+using FuelManagementSystem.API.Models;
+using FuelManagementSystem.API.Repositories;
+using FuelManagementSystem.API.Services;
+using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+
+namespace FuelManagementSystem.API.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class AuthController : ControllerBase
+    {
+        private const int TOKEN_EXPIRATION_MINUTES = 60;
+        private const int RESET_TOKEN_EXPIRATION_HOURS = 1;
+
+
+        private readonly IUserRepository _userRepository;
+        private readonly IJwtService _jwtService;
+        private readonly IPasswordService _passwordService;
+        private readonly IEmailService _emailService;
+        private readonly ILogger<AuthController> _logger;
+
+        public AuthController(IUserRepository userRepository, IJwtService jwtService,
+                              IPasswordService passwordService, IEmailService emailService,
+                              ILogger<AuthController> logger)
+        {
+            _userRepository = userRepository;
+            _jwtService = jwtService;
+            _passwordService = passwordService;
+            _emailService = emailService;
+            _logger = logger;
+        }
+
+        [AllowAnonymous]
+        [HttpPost("register")]
+        public async Task<ActionResult<AuthResponseDto>> Register(RegisterDto registerDto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                if (registerDto.Password != registerDto.ConfirmPassword)
+                {
+                    return BadRequest("Password and confirmation password do not match.");
+                }
+
+                // Добавить валидацию пароля
+                if (!IsPasswordValid(registerDto.Password))
+                {
+                    return BadRequest("Password must be at least 8 characters long and contain uppercase, lowercase, and numbers.");
+                }
+
+                // Проверка на существование пользователя
+                var existingUser = await _userRepository.UserExistsAsync(registerDto.Email, registerDto.Login);
+                if (existingUser)
+                {
+                    return BadRequest("User with this email or login already exists.");
+                }
+
+                // Создание нового пользователя
+                var user = new User
+                {
+                    Email = registerDto.Email,
+                    Login = registerDto.Login,
+                    PasswordHash = _passwordService.HashPassword(registerDto.Password),
+                    Note = registerDto.Note,
+                    DateOfRecording = DateTime.UtcNow,
+                    WhoRecorded = "System",
+                    WhenDeleted = null
+                };
+
+                await _userRepository.AddAsync(user);
+
+                // Генерация токена
+                var token = _jwtService.GenerateToken(user);
+
+                var userDto = new UserDto
+                {
+                    Id = user.IdUsers,
+                    Email = user.Email,
+                    Login = user.Login,
+                    Note = user.Note
+                };
+
+                var response = new AuthResponseDto
+                {
+                    Token = token,
+                    Expiration = DateTime.UtcNow.AddMinutes(TOKEN_EXPIRATION_MINUTES), // Должно соответствовать настройкам JWT
+                    User = userDto
+                };
+
+                // Добавить валидацию email
+                if (!IsValidEmail(registerDto.Email))
+                {
+                    return BadRequest("Invalid email format.");
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error during user registration");
+                return StatusCode(500, "An error occurred during registration.");
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("login")]
+        public async Task<ActionResult<AuthResponseDto>> Login(LoginDto loginDto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                User? user = null;
+
+                // Автоматически определяем тип ввода
+                if (loginDto.Login.Contains("@"))
+                {
+                    // Если содержит @ - считаем email
+                    user = await _userRepository.GetByEmailAsync(loginDto.Login);
+                }
+                else
+                {
+                    // Иначе считаем username
+                    user = await _userRepository.GetByUsernameAsync(loginDto.Login);
+                }
+
+                if (user == null)
+                {
+                    return Unauthorized("Неверные учетные данные.");
+                }
+
+                // Проверка пароля
+                if (!_passwordService.VerifyPassword(loginDto.Password, user.PasswordHash))
+                {
+                    return Unauthorized("Неверные учетные данные.");
+                }
+
+                // Генерация токена
+                var token = _jwtService.GenerateToken(user);
+
+                var userDto = new UserDto
+                {
+                    Id = user.IdUsers,
+                    Email = user.Email,
+                    Login = user.Login,
+                    Note = user.Note
+                };
+
+                var response = new AuthResponseDto
+                {
+                    Token = token,
+                    Expiration = DateTime.UtcNow.AddMinutes(TOKEN_EXPIRATION_MINUTES),
+                    User = userDto
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error during user login");
+                return StatusCode(500, "An error occurred during login.");
+            }
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword(ChangePasswordDto changePasswordDto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                if (changePasswordDto.NewPassword != changePasswordDto.ConfirmNewPassword)
+                {
+                    return BadRequest("New password and confirmation password do not match.");
+                }
+
+                // Получение ID пользователя из токена (будет работать после добавления авторизации)
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+                var user = await _userRepository.GetActiveByIdAsync(userId);
+
+                if (user == null)
+                {
+                    return NotFound("User not found.");
+                }
+
+                // Проверка текущего пароля
+                if (!_passwordService.VerifyPassword(changePasswordDto.CurrentPassword, user.PasswordHash))
+                {
+                    return BadRequest("Current password is incorrect.");
+                }
+
+                // Обновление пароля
+                user.PasswordHash = _passwordService.HashPassword(changePasswordDto.NewPassword);
+                user.DateOfChange = DateTime.UtcNow;
+                user.WhoChanged = "System";
+
+                await _userRepository.UpdateAsync(user);
+
+                return Ok("Password changed successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error during user change-password");
+                return StatusCode(500, "An error occurred during change-password.");
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordDto forgotPasswordDto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                // Поиск пользователя по email
+                var user = await _userRepository.GetByEmailAsync(forgotPasswordDto.Email);
+                if (user == null)
+                {
+                    // В целях безопасности не сообщаем, что пользователь не найден
+                    return Ok("If the email is registered, a password reset link has been sent.");
+                }
+
+                // Генерация токена сброса пароля
+                var resetToken = GeneratePasswordResetToken();
+                var tokenExpiry = DateTime.UtcNow.AddHours(RESET_TOKEN_EXPIRATION_HOURS); // Токен действует 1 час
+
+                // Сохранение токена в базе данных (добавьте поле ResetToken в модель User)
+                user.ResetToken = resetToken;
+                user.ResetTokenExpiry = tokenExpiry;
+                user.DateOfChange = DateTime.UtcNow;
+                user.WhoChanged = "System";
+
+                await _userRepository.UpdateAsync(user);
+
+                // Отправка email с ссылкой для сброса пароля
+                try
+                {
+                    await _emailService.SendPasswordResetEmail(user.Email, resetToken);
+                    return Ok("If the email is registered, a password reset link has been sent.");
+                }
+                catch (Exception ex)
+                {
+                    // Логируем ошибку, но не раскрываем детали пользователю
+                    Console.WriteLine($"Error sending email: {ex.Message}");
+                    return StatusCode(500, "Error sending reset email. Please try again later.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error during user forgot-password");
+                return StatusCode(500, "An error occurred during forgot-password.");
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordDto resetPasswordDto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                if (resetPasswordDto.NewPassword != resetPasswordDto.ConfirmNewPassword)
+                {
+                    return BadRequest("New password and confirmation password do not match.");
+                }
+
+                // Поиск пользователя по токену сброса
+                var user = await _userRepository.GetByResetTokenAsync(resetPasswordDto.Token);
+                if (user == null || user.ResetTokenExpiry < DateTime.UtcNow)
+                {
+                    return BadRequest("Invalid or expired reset token.");
+                }
+
+                // Сброс пароля
+                user.PasswordHash = _passwordService.HashPassword(resetPasswordDto.NewPassword);
+                user.ResetToken = null; // Очищаем токен после использования
+                user.ResetTokenExpiry = null;
+                user.DateOfChange = DateTime.UtcNow;
+                user.WhoChanged = "System";
+
+                await _userRepository.UpdateAsync(user);
+
+                return Ok("Password has been reset successfully. You can now login with your new password.");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error during user reset-password");
+                return StatusCode(500, "An error occurred during reset-password.");
+            }
+        }
+
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            // В JWT нет состояния, поэтому на сервере мы не можем "удалить" токен
+            // Клиент должен удалить токен со своей стороны
+            // В продвинутых сценариях можно использовать blacklist токенов
+
+            // Здесь можно добавить логику для blacklist, если требуется
+            // Например, сохранить токен в базу данных недействительных токенов
+            // до истечения его срока действия
+
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+
+                // Логируем выход пользователя (опционально)
+                Console.WriteLine($"User {userId} logged out at {DateTime.UtcNow}");
+
+                return Ok(new { message = "Logout successful. Please remove the token on the client side." });
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error during user logout");
+                return StatusCode(500, "An error occurred during logout.");
+            }
+        }
+
+        [Authorize]
+        [HttpPost("validate-token")]
+        public IActionResult ValidateToken()
+        {
+            try
+            {
+                // Простой endpoint для проверки валидности токена
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+
+                return Ok(new
+                {
+                    isValid = true,
+                    userId = userId,
+                    userEmail = userEmail,
+                    message = "Token is valid"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error during user validate-token");
+                return StatusCode(500, "An error occurred during validate-token.");
+            }
+        }
+
+        private string GeneratePasswordResetToken()
+        {
+            // Генерация случайного токена
+            return Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+                         .Replace("+", "")
+                         .Replace("/", "")
+                         .Replace("=", "");
+        }
+
+        private bool IsPasswordValid(string password)
+        {
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+                return false;
+
+            // Минимальные требования к паролю
+            return password.Any(char.IsUpper) &&
+                   password.Any(char.IsLower) &&
+                   password.Any(char.IsDigit);
+        }
+
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+}

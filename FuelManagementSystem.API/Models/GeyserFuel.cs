@@ -3,17 +3,13 @@ using System.Collections.Generic;
 
 namespace FuelManagementSystem.API.Models;
 
-public partial class Fuel : ISoftDelete
+public partial class GeyserFuel : ISoftDelete
 {
-    public int IdFuel { get; set; }
+    public int IdGeyserFuel { get; set; }
 
-    public string? Brand { get; set; }
+    public int? IdGeyser { get; set; }
 
-    public int? ShelfLife { get; set; }
-
-    public string? Manufacturer { get; set; }
-
-    public decimal? Cost { get; set; }
+    public int? IdFuel { get; set; }
 
     public DateTime? DateOfRecording { get; set; }
 
@@ -27,5 +23,7 @@ public partial class Fuel : ISoftDelete
 
     public DateTime? WhenDeleted { get; set; }
 
-    public virtual ICollection<GeyserFuel> GeyserFuels { get; set; } = new List<GeyserFuel>();
+    public virtual Fuel? IdFuelNavigation { get; set; }
+
+    public virtual Geyser? IdGeyserNavigation { get; set; }
 }

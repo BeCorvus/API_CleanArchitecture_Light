@@ -1,28 +1,20 @@
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
-namespace FuelManagementSystem.Models
+﻿namespace FuelManagementSystem.API.Models
 {
-    public class Equipment : BaseEntity
+    public partial class Equipment : ISoftDelete  // Добавляем интерфейс
     {
-        [Key]
-        public int ID_Equipment { get; set; }
-        
-        [Required]
-        [StringLength(100)]
-        public string Name { get; set; }
-        
-        [StringLength(50)]
-        public string Brand { get; set; }
-        
-        [ForeignKey("FuelColumn")]
-        public int? ID_Column { get; set; }
-        
-        // Навигационные свойства
-        public FuelColumn FuelColumn { get; set; }
-        public ICollection<ColumnEquipment> ColumnEquipments { get; set; }
-        public ICollection<EquipmentRepair> EquipmentRepairs { get; set; }
+        public int IdEquipment { get; set; }
+        public string? Name { get; set; }
+        public string? Brand { get; set; }
+        public int? IdGeyser { get; set; }
+        public int? IdRepair { get; set; }
+        public DateTime? DateOfRecording { get; set; }
+        public DateTime? DateOfChange { get; set; }
+        public string? WhoRecorded { get; set; }
+        public string? WhoChanged { get; set; }
+        public string? Note { get; set; }
+        public DateTime? WhenDeleted { get; set; }
+
+        public virtual ICollection<GeyserEquipment> GeyserEquipments { get; set; } = new List<GeyserEquipment>();
+        public virtual ICollection<RepairEquipment> RepairEquipments { get; set; } = new List<RepairEquipment>();
     }
 }
