@@ -1,10 +1,11 @@
-﻿// Базовый URL API
-const API_BASE_URL = window.location.origin + '/api';
+﻿// api.js
+const API_BASE_URL = 'http://localhost:5077/api'; // Замените на ваш URL
 
-// Сервис для работы с API
 class ApiService {
     constructor() {
         this.token = localStorage.getItem('authToken');
+        this.userRole = localStorage.getItem('userRole');
+        this.userName = localStorage.getItem('userName');
     }
 
     // Установка токена
@@ -13,267 +14,211 @@ class ApiService {
         localStorage.setItem('authToken', token);
     }
 
-    // Удаление токена
-    clearToken() {
+    // Установка информации о пользователе
+    setUserInfo(username, role) {
+        this.userName = username;
+        this.userRole = role;
+        localStorage.setItem('userName', username);
+        localStorage.setItem('userRole', role);
+    }
+
+    // Очистка данных
+    clearData() {
         this.token = null;
+        this.userRole = null;
+        this.userName = null;
         localStorage.removeItem('authToken');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
     }
 
-    // Проверка валидности токена
-    async validateToken() {
-        try {
-            const response = await this.request('/Users/profile', {
-                method: 'GET'
-            });
-            return response && response.username;
-        } catch (error) {
-            console.error('Token validation failed:', error);
-            return false;
-        }
-    }
-
-    // Базовый метод для HTTP запросов
+    // Базовый метод для запросов
     async request(endpoint, options = {}) {
         const url = `${API_BASE_URL}${endpoint}`;
 
-        console.log('📤 API Request:', {
+        console.log('📤 Отправка запроса:', {
             url: url,
             method: options.method || 'GET',
-            endpoint: endpoint,
-            body: options.body,
-            headers: options.headers
+            endpoint: endpoint
         });
 
-        const config = {
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            },
-            ...options
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers
         };
 
-        // Добавляем токен авторизации если есть
+        // Добавляем токен, если есть
         if (this.token) {
-            config.headers['Authorization'] = `Bearer ${this.token}`;
+            headers['Authorization'] = `Bearer ${this.token}`;
         }
+
+        const config = {
+            ...options,
+            headers
+        };
 
         if (options.body && typeof options.body === 'object') {
             config.body = JSON.stringify(options.body);
-            console.log('📦 Request body (stringified):', config.body);
+            console.log('📦 Тело запроса:', config.body);
         }
 
         try {
             const response = await fetch(url, config);
 
-            console.log('📥 API Response:', {
+            console.log('📥 Ответ сервера:', {
                 status: response.status,
                 statusText: response.statusText,
-                url: response.url,
-                ok: response.ok
+                url: response.url
             });
 
-            // Для DELETE запросов может не быть тела
-            if (response.status === 204) {
-                console.log('✅ 204 No Content - успешное удаление');
-                return { success: true, message: 'Удалено успешно' };
-            }
-
+            // Обработка ошибок авторизации
             if (response.status === 401) {
-                // Неавторизован - перенаправляем на логин
-                console.warn('❌ 401 Unauthorized - перенаправление на логин');
-                this.clearToken();
-                window.location.href = '/login.html';
-                throw new Error('Unauthorized');
+                this.clearData();
+                window.location.href = 'login.html';
+                throw new Error('Требуется авторизация');
             }
 
+            // Получаем данные ответа
+            let responseData;
+            const contentType = response.headers.get('content-type');
+
+            if (contentType && contentType.includes('application/json')) {
+                responseData = await response.json();
+            } else {
+                responseData = await response.text();
+            }
+
+            // Если статус не успешный (не 2xx), выбрасываем ошибку
             if (!response.ok) {
-                let errorText = '';
-                try {
-                    // Пытаемся получить JSON ошибки
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        const errorJson = await response.json();
-                        errorText = JSON.stringify(errorJson);
-                    } else {
-                        errorText = await response.text();
+                console.error('❌ Ошибка сервера:', responseData);
+
+                // Создаем объект ошибки с данными от сервера
+                const error = new Error(`HTTP error! status: ${response.status}`);
+                error.status = response.status;
+                error.data = responseData;
+
+                // Добавляем сообщение об ошибке из ответа сервера
+                if (responseData && typeof responseData === 'object') {
+                    error.message = responseData.message || error.message;
+                    // Если есть валидационные ошибки
+                    if (responseData.errors) {
+                        const validationErrors = [];
+                        Object.entries(responseData.errors).forEach(([field, errors]) => {
+                            validationErrors.push(`${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`);
+                        });
+                        error.message = validationErrors.join('; ');
                     }
-                } catch (e) {
-                    errorText = 'Не удалось прочитать ошибку';
                 }
 
-                console.error('❌ API Error Response:', errorText);
-                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                throw error;
             }
 
-            // Проверяем, есть ли тело ответа
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                const responseData = await response.json();
-                console.log('✅ API Success Response:', responseData);
-                return responseData;
-            } else {
-                // Если ответ не JSON, возвращаем текст
-                const text = await response.text();
-                console.log('✅ API Success Response (text):', text);
-                return text;
-            }
+            console.log('✅ Успешный ответ:', responseData);
+            return responseData;
+
         } catch (error) {
-            console.error('❌ API request failed:', error);
-            // Не бросаем ошибку дальше, чтобы не ломать интерфейс
-            // Вместо этого возвращаем объект с ошибкой
-            return {
-                error: true,
-                message: error.message,
-                status: error.status || 0
+            console.error('❌ Ошибка запроса:', error);
+
+            // Добавляем пользователю понятное сообщение
+            if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+                error.message = 'Не удалось подключиться к серверу. Проверьте подключение к интернету и адрес сервера.';
+            }
+
+            throw error;
+        }
+    }
+
+    // Вход в систему
+    async login(credentials) {
+        console.log('🔐 Вход с данными:', credentials);
+        try {
+            // Преобразуем данные в формат, который ожидает сервер
+            // Сервер, скорее всего, ожидает login или email
+            const loginData = {
+                login: credentials.login || credentials.username || credentials.email,
+                password: credentials.password
             };
+
+            console.log('📤 Отправка данных для входа:', loginData);
+
+            const result = await this.request('/auth/login', {
+                method: 'POST',
+                body: loginData
+            });
+
+            console.log('🔑 Результат входа:', result);
+
+            // Обработка успешного ответа
+            if (result) {
+                if (result.token) {
+                    this.setToken(result.token);
+                }
+
+                if (result.user) {
+                    this.setUserInfo(
+                        result.user.username || result.user.login || result.user.email,
+                        result.user.role || 'User'
+                    );
+                }
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Ошибка входа:', error);
+            throw error;
         }
     }
 
-    // Аутентификация
-    async login(loginData) {
-        return await this.request('/auth/login', {
-            method: 'POST',
-            body: loginData
-        });
-    }
-
+    // Регистрация пользователя
     async register(userData) {
-        return await this.request('/auth/register', {
-            method: 'POST',
-            body: userData
-        });
-    }
+        console.log('📝 Регистрация с данными:', userData);
+        try {
+            // Преобразуем данные в формат, который ожидает сервер
+            // Согласно Swagger, сервер ожидает:
+            // email, login, password, confirmPassword, note
+            const registerData = {
+                email: userData.email || '',
+                login: userData.login || userData.username || '',
+                password: userData.password || '',
+                confirmPassword: userData.confirmPassword || userData.password || '',
+                note: userData.note || ''
+            };
 
-    // CRUD операции для Equipment
-    async getEquipment() {
-        const result = await this.request('/Equipment');
-        // Если результат содержит error, возвращаем пустой массив
-        if (result && result.error) {
-            console.warn('Ошибка при получении оборудования, возвращаем пустой массив');
-            return [];
+            console.log('📤 Отправка данных для регистрации:', registerData);
+
+            const result = await this.request('/auth/register', {
+                method: 'POST',
+                body: registerData
+            });
+
+            console.log('✅ Результат регистрации:', result);
+
+            // Обработка успешного ответа
+            if (result) {
+                if (result.token) {
+                    this.setToken(result.token);
+                }
+
+                if (result.user) {
+                    this.setUserInfo(
+                        result.user.login || result.user.username || result.user.email,
+                        result.user.role || 'User'
+                    );
+                }
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Ошибка регистрации:', error);
+            throw error;
         }
-        return result || [];
     }
 
-    async getEquipmentById(id) {
-        return await this.request(`/Equipment/${id}`);
-    }
-
-    async createEquipment(equipment) {
-        return await this.request('/Equipment', {
-            method: 'POST',
-            body: equipment
-        });
-    }
-
-    async updateEquipment(id, equipment) {
-        return await this.request(`/Equipment/${id}`, {
-            method: 'PUT',
-            body: equipment
-        });
-    }
-
-    async deleteEquipment(id) {
-        return await this.request(`/Equipment/${id}`, {
-            method: 'DELETE'
-        });
-    }
-
-    // CRUD операции для Fuel
-    async getFuel() {
-        const result = await this.request('/Fuel');
-        if (result && result.error) {
-            console.warn('Ошибка при получении топлива, возвращаем пустой массив');
-            return [];
-        }
-        return result || [];
-    }
-
-    async createFuel(fuel) {
-        return await this.request('/Fuel', {
-            method: 'POST',
-            body: fuel
-        });
-    }
-
-    async updateFuel(id, fuel) {
-        return await this.request(`/Fuel/${id}`, {
-            method: 'PUT',
-            body: fuel
-        });
-    }
-
-    async deleteFuel(id) {
-        return await this.request(`/Fuel/${id}`, {
-            method: 'DELETE'
-        });
-    }
-
-    // CRUD операции для Geyser
-    async getGeysers() {
-        const result = await this.request('/Geyser');
-        if (result && result.error) {
-            console.warn('Ошибка при получении гейзеров, возвращаем пустой массив');
-            return [];
-        }
-        return result || [];
-    }
-
-    async createGeyser(geyser) {
-        return await this.request('/Geyser', {
-            method: 'POST',
-            body: geyser
-        });
-    }
-
-    async updateGeyser(id, geyser) {
-        return await this.request(`/Geyser/${id}`, {
-            method: 'PUT',
-            body: geyser
-        });
-    }
-
-    async deleteGeyser(id) {
-        return await this.request(`/Geyser/${id}`, {
-            method: 'DELETE'
-        });
-    }
-
-    // CRUD операции для Repair
-    async getRepairs() {
-        const result = await this.request('/Repair');
-        if (result && result.error) {
-            console.warn('Ошибка при получении ремонтов, возвращаем пустой массив');
-            return [];
-        }
-        return result || [];
-    }
-
-    async createRepair(repair) {
-        return await this.request('/Repair', {
-            method: 'POST',
-            body: repair
-        });
-    }
-
-    async updateRepair(id, repair) {
-        return await this.request(`/Repair/${id}`, {
-            method: 'PUT',
-            body: repair
-        });
-    }
-
-    async deleteRepair(id) {
-        return await this.request(`/Repair/${id}`, {
-            method: 'DELETE'
-        });
-    }
-
-    // Получение профиля пользователя
-    async getProfile() {
-        return await this.request('/Users/profile');
+    // Проверка роли
+    isAdmin() {
+        return this.userRole === 'Admin';
     }
 }
 
-// Создаем глобальный экземпляр API сервиса
+// Создаем глобальный экземпляр
 window.apiService = new ApiService();

@@ -1,0 +1,99 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система заправки - Статистика</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Шапка -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1 class="system-title">Система заправки</h1>
+                <div class="user-info">
+                    <span class="user-name" id="userName">[Имя пользователя]</span>
+                    <span class="user-role" id="userRole">[Роль]</span>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <nav class="main-nav">
+                    <button class="nav-btn" onclick="window.location.href='index.html'">
+                        Таблицы
+                    </button>
+                    <button class="nav-btn logout-btn" onclick="logout()">
+                        Выйти
+                    </button>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Основное содержание -->
+        <main class="dashboard-main">
+            <div class="content-header">
+                <h2 class="section-title">Статистика</h2>
+                <div class="controls-row">
+                    <div class="table-selection">
+                        <label for="statTableSelect" class="select-label">Название таблицы</label>
+                        <select id="statTableSelect" class="table-select" onchange="loadStatistics()">
+                            <option value="">-- Выберите таблицу --</option>
+                            <option value="equipment">Оборудование</option>
+                            <option value="fuel">Топливо</option>
+                            <option value="transactions">Транзакции</option>
+                            <option value="users">Пользователи</option>
+                            <option value="stations">Заправочные станции</option>
+                        </select>
+                    </div>
+
+                    <div class="chart-type-selection">
+                        <label for="chartTypeSelect" class="select-label">Тип диаграммы</label>
+                        <select id="chartTypeSelect" class="table-select" onchange="loadStatistics()">
+                            <option value="bar">Столбчатая диаграмма</option>
+                            <option value="line">Линейный график</option>
+                            <option value="pie">Круговая диаграмма</option>
+                            <option value="doughnut">Кольцевая диаграмма</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Область для диаграммы -->
+            <div class="statistics-container">
+                <div id="loading" class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Загрузка статистики...</p>
+                </div>
+
+                <div id="noData" class="no-data">
+                    <p>Выберите таблицу для отображения статистики</p>
+                </div>
+
+                <div class="chart-controls">
+                    <button onclick="exportChart('png')" class="chart-btn">📥 Сохранить PNG</button>
+                    <button onclick="toggleLegend()" class="chart-btn">👁️ Легенда</button>
+                    <select onchange="changeChartTheme(this.value)" class="chart-select">
+                        <option value="light">Светлая тема</option>
+                        <option value="dark">Тёмная тема</option>
+                        <option value="blue">Синяя тема</option>
+                    </select>
+                </div>
+
+                <div class="chart-wrapper">
+                    <canvas id="statisticsChart"></canvas>
+                </div>
+
+                <div id="chartStats" class="chart-stats">
+                    <!-- Статистические данные будут здесь -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/statistics.js"></script>
+</body>
+</html>

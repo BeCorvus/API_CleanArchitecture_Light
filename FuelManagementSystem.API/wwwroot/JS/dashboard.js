@@ -1,552 +1,259 @@
-﻿// Функции для dashboard
-document.addEventListener('DOMContentLoaded', async function () {
-    console.log('Dashboard loaded');
-    console.log('Token exists:', !!localStorage.getItem('authToken'));
+﻿// Глобальные переменные
+let currentTable = '';
+let currentData = [];
 
-    await checkAuth();
-    await loadStats();
+// Проверка авторизации при загрузке
+document.addEventListener('DOMContentLoaded', function () {
+    checkAuth();
+    setupEventListeners();
 });
 
 // Проверка авторизации
 async function checkAuth() {
     const token = localStorage.getItem('authToken');
-    console.log('Checking auth, token:', token);
 
     if (!token) {
-        console.log('No token found, redirecting to login');
         window.location.href = 'login.html';
         return;
     }
 
-    try {
-        console.log('Fetching user profile...');
-        const profile = await apiService.getProfile();
-        console.log('Profile response:', profile);
+    // Обновляем информацию о пользователе
+    const userName = localStorage.getItem('userName');
+    const userRole = localStorage.getItem('userRole');
 
-        if (profile && !profile.error) {
-            if (profile.username) {
-                document.getElementById('userBtn').innerHTML = `👤 ${profile.username}`;
-                console.log('Username set:', profile.username);
-            } else if (profile.email) {
-                document.getElementById('userBtn').innerHTML = `👤 ${profile.email}`;
-                console.log('Email set as username:', profile.email);
-            } else {
-                document.getElementById('userBtn').innerHTML = `👤 Пользователь`;
-                console.warn('Профиль не содержит username или email:', profile);
-            }
-        } else {
-            // Если ошибка, но не 401, все равно показываем интерфейс
-            document.getElementById('userBtn').innerHTML = `👤 Пользователь`;
-            console.warn('Профиль не загружен или содержит ошибку:', profile);
+    if (userName) {
+        document.getElementById('userName').textContent = userName;
+    }
 
-            // Если это ошибка авторизации (401), перенаправляем
-            if (profile && profile.status === 401) {
-                apiService.clearToken();
-                window.location.href = 'login.html';
-                return;
+    if (userRole) {
+        document.getElementById('userRole').textContent = userRole;
+
+        // Скрываем кнопку статистики для не-админов
+        if (userRole !== 'Admin') {
+            const statsBtn = document.getElementById('statisticsBtn');
+            if (statsBtn) {
+                statsBtn.style.display = 'none';
             }
-        }
-    } catch (error) {
-        console.error('Profile load error:', error);
-        document.getElementById('userBtn').innerHTML = `👤 Пользователь`;
-        // Не перенаправляем на логин, чтобы не ломать работу других функций
-        // только если это не ошибка авторизации
-        if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-            apiService.clearToken();
-            window.location.href = 'login.html';
         }
     }
 }
 
-// Загрузка статистики
-async function loadStats() {
-    console.log('Loading stats...');
-    try {
-        const [equipment, fuel, geysers, repairs] = await Promise.all([
-            apiService.getEquipment(),
-            apiService.getFuel(),
-            apiService.getGeysers(),
-            apiService.getRepairs()
-        ]);
-
-        console.log('Stats loaded:', {
-            equipment: equipment,
-            fuel: fuel,
-            geysers: geysers,
-            repairs: repairs
-        });
-
-        document.getElementById('equipmentCount').textContent = equipment ? equipment.length : 0;
-        document.getElementById('fuelCount').textContent = fuel ? fuel.length : 0;
-        document.getElementById('geyserCount').textContent = geysers ? geysers.length : 0;
-        document.getElementById('repairCount').textContent = repairs ? repairs.length : 0;
-
-        console.log('Stats updated in UI');
-    } catch (error) {
-        console.error('Stats load error:', error);
-        // Устанавливаем значения по умолчанию при ошибке
-        document.getElementById('equipmentCount').textContent = '0';
-        document.getElementById('fuelCount').textContent = '0';
-        document.getElementById('geyserCount').textContent = '0';
-        document.getElementById('repairCount').textContent = '0';
+// Настройка обработчиков событий
+function setupEventListeners() {
+    // Кнопка выхода
+    const logoutBtn = document.querySelector('.logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
     }
 }
 
 // Выход из системы
 function logout() {
     if (confirm('Вы уверены, что хотите выйти?')) {
-        apiService.clearToken();
+        apiService.clearData();
         window.location.href = 'login.html';
     }
 }
 
-// Управление модальным окном
-let currentEntityType = '';
+// Переход на страницу статистики
+function showStatisticsPage() {
+    window.location.href = 'statistics.html';
+}
 
-function openCreateModal(entityType) {
-    currentEntityType = entityType;
+// Обработка выбора таблицы
+function onTableSelect() {
+    const tableSelect = document.getElementById('tableSelect');
+    const generateBtn = document.getElementById('generateBtn');
 
-    // Скрываем все поля форм
-    document.querySelectorAll('.form-fields').forEach(field => {
-        field.style.display = 'none';
+    if (tableSelect.value) {
+        generateBtn.disabled = false;
+        currentTable = tableSelect.value;
+    } else {
+        generateBtn.disabled = true;
+    }
+}
+
+// Генерация данных
+async function generateData() {
+    if (!currentTable) return;
+
+    const loading = document.getElementById('loading');
+    const noData = document.getElementById('noData');
+    const tableContainer = document.getElementById('dataTableContainer');
+
+    // Показываем загрузку
+    loading.classList.add('active');
+    noData.style.display = 'none';
+    tableContainer.style.display = 'none';
+
+    try {
+        // Получаем данные из API или используем моковые данные
+        currentData = await fetchTableData(currentTable);
+
+        // Отображаем данные
+        displayTableData(currentData);
+
+        tableContainer.style.display = 'block';
+    } catch (error) {
+        console.error('Error generating data:', error);
+        noData.textContent = 'Ошибка загрузки данных';
+        noData.style.display = 'block';
+    } finally {
+        loading.classList.remove('active');
+    }
+}
+
+// Получение данных таблицы
+async function fetchTableData(tableName) {
+    try {
+        // В реальном приложении здесь будет вызов API
+        // return await apiService.getTableData(tableName);
+
+        // Моковые данные для демонстрации
+        return getMockData(tableName);
+    } catch (error) {
+        console.error('Error fetching table data:', error);
+        throw error;
+    }
+}
+
+// Отображение данных в таблице
+function displayTableData(data) {
+    const tableHeader = document.getElementById('tableHeader');
+    const tableBody = document.getElementById('tableBody');
+
+    // Очищаем таблицу
+    tableHeader.innerHTML = '';
+    tableBody.innerHTML = '';
+
+    if (!data || data.length === 0) {
+        document.getElementById('noData').style.display = 'block';
+        document.getElementById('dataTableContainer').style.display = 'none';
+        return;
+    }
+
+    // Создаем заголовки на основе ключей первого объекта
+    const headers = Object.keys(data[0]);
+    const headerRow = document.createElement('tr');
+
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = formatHeader(header);
+        headerRow.appendChild(th);
     });
 
-    // Показываем нужные поля
-    document.getElementById(entityType + 'Fields').style.display = 'block';
+    // Добавляем заголовок для действий
+    const actionsTh = document.createElement('th');
+    actionsTh.textContent = 'Действия';
+    headerRow.appendChild(actionsTh);
 
-    // Устанавливаем заголовок
-    const titles = {
-        'equipment': 'Добавить оборудование',
-        'fuel': 'Добавить топливо',
-        'geyser': 'Добавить гейзер',
-        'repair': 'Добавить ремонт'
+    tableHeader.appendChild(headerRow);
+
+    // Заполняем тело таблицы
+    data.forEach((row, index) => {
+        const tableRow = document.createElement('tr');
+
+        headers.forEach(header => {
+            const td = document.createElement('td');
+            td.textContent = row[header] || '-';
+            tableRow.appendChild(td);
+        });
+
+        // Добавляем кнопки действий
+        const actionsTd = document.createElement('td');
+        actionsTd.className = 'actions-cell';
+
+        const viewBtn = document.createElement('button');
+        viewBtn.className = 'action-btn view-btn';
+        viewBtn.textContent = '👁️';
+        viewBtn.onclick = () => viewDetails(row);
+        actionsTd.appendChild(viewBtn);
+
+        tableRow.appendChild(actionsTd);
+        tableBody.appendChild(tableRow);
+    });
+}
+
+// Форматирование заголовков
+function formatHeader(header) {
+    const words = header.replace(/([A-Z])/g, ' $1').trim().split(' ');
+    return words.map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
+// Просмотр деталей записи
+function viewDetails(data) {
+    const modal = document.getElementById('detailsModal');
+    const modalContent = document.getElementById('modalContent');
+
+    let html = '<h3>Подробная информация</h3>';
+    html += '<div class="details-container">';
+
+    Object.entries(data).forEach(([key, value]) => {
+        html += `
+            <div class="detail-row">
+                <span class="detail-label">${formatHeader(key)}:</span>
+                <span class="detail-value">${value || '-'}</span>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    modalContent.innerHTML = html;
+    modal.style.display = 'flex';
+}
+
+// Закрытие модального окна
+function closeModal() {
+    document.getElementById('detailsModal').style.display = 'none';
+}
+
+// Моковые данные для демонстрации
+function getMockData(tableName) {
+    const mockData = {
+        equipment: [
+            { id: 1, name: 'Насос дизельный', type: 'Насос', status: 'Активен', location: 'Цех 1', lastMaintenance: '2024-01-15' },
+            { id: 2, name: 'Резервуар 1000л', type: 'Резервуар', status: 'На ремонте', location: 'Цех 2', lastMaintenance: '2024-01-10' },
+            { id: 3, name: 'Топливопровод', type: 'Трубопровод', status: 'Активен', location: 'Цех 1', lastMaintenance: '2024-01-12' },
+            { id: 4, name: 'Контроллер уровня', type: 'Электроника', status: 'Активен', location: 'Цех 3', lastMaintenance: '2024-01-14' },
+            { id: 5, name: 'Фильтр тонкой очистки', type: 'Фильтр', status: 'Заменен', location: 'Цех 2', lastMaintenance: '2024-01-18' }
+        ],
+        fuel: [
+            { id: 1, type: 'Дизель', quantity: 1500, unit: 'литры', price: 55.5, supplier: 'Лукойл', date: '2024-01-15' },
+            { id: 2, type: 'Бензин АИ-95', quantity: 2000, unit: 'литры', price: 52.3, supplier: 'Газпромнефть', date: '2024-01-14' },
+            { id: 3, type: 'Бензин АИ-92', quantity: 1800, unit: 'литры', price: 48.7, supplier: 'Роснефть', date: '2024-01-13' },
+            { id: 4, type: 'Масло моторное', quantity: 200, unit: 'литры', price: 350, supplier: 'Shell', date: '2024-01-12' },
+            { id: 5, type: 'Антифриз', quantity: 150, unit: 'литры', price: 120, supplier: 'Mobil', date: '2024-01-11' }
+        ],
+        transactions: [
+            { id: 1, date: '2024-01-15', type: 'Заправка', fuelType: 'Дизель', quantity: 50, amount: 2775, operator: 'Иванов И.И.' },
+            { id: 2, date: '2024-01-14', type: 'Заправка', fuelType: 'Бензин АИ-95', quantity: 35, amount: 1830.5, operator: 'Петров П.П.' },
+            { id: 3, date: '2024-01-13', type: 'Поступление', fuelType: 'Дизель', quantity: 1000, amount: 55500, operator: 'Сидоров С.С.' },
+            { id: 4, date: '2024-01-12', type: 'Заправка', fuelType: 'Бензин АИ-92', quantity: 40, amount: 1948, operator: 'Иванов И.И.' },
+            { id: 5, date: '2024-01-11', type: 'Списание', fuelType: 'Масло', quantity: 10, amount: 3500, operator: 'Петров П.П.' }
+        ],
+        users: [
+            { id: 1, username: 'admin', email: 'admin@system.ru', role: 'Admin', status: 'Активен', lastLogin: '2024-01-15' },
+            { id: 2, username: 'operator1', email: 'op1@system.ru', role: 'Operator', status: 'Активен', lastLogin: '2024-01-15' },
+            { id: 3, username: 'operator2', email: 'op2@system.ru', role: 'Operator', status: 'Активен', lastLogin: '2024-01-14' },
+            { id: 4, username: 'manager', email: 'manager@system.ru', role: 'Manager', status: 'Активен', lastLogin: '2024-01-13' },
+            { id: 5, username: 'guest', email: 'guest@system.ru', role: 'Guest', status: 'Не активен', lastLogin: '2024-01-10' }
+        ],
+        stations: [
+            { id: 1, name: 'Станция №1', location: 'Цех 1', type: 'Основная', status: 'Работает', fuelTypes: 'Дизель, Бензин', lastService: '2024-01-15' },
+            { id: 2, name: 'Станция №2', location: 'Цех 2', type: 'Резервная', status: 'На обслуживании', fuelTypes: 'Дизель', lastService: '2024-01-14' },
+            { id: 3, name: 'Станция №3', location: 'Цех 3', type: 'Мобильная', status: 'Работает', fuelTypes: 'Бензин', lastService: '2024-01-13' },
+            { id: 4, name: 'Станция №4', location: 'Склад', type: 'Основная', status: 'Работает', fuelTypes: 'Дизель, Бензин, Масло', lastService: '2024-01-12' },
+            { id: 5, name: 'Станция №5', location: 'Гараж', type: 'Резервная', status: 'Отключена', fuelTypes: 'Дизель', lastService: '2024-01-10' }
+        ]
     };
 
-    document.getElementById('modalTitle').textContent = titles[entityType];
-    document.getElementById('createModal').style.display = 'flex';
+    return mockData[tableName] || [];
 }
 
-function closeCreateModal() {
-    document.getElementById('createModal').style.display = 'none';
-    document.getElementById('createForm').reset();
-}
-
-// Обработка формы создания
-document.getElementById('createForm').addEventListener('submit', async function (e) {
-    e.preventDefault();
-
-    let data = {};
-
-    switch (currentEntityType) {
-        case 'equipment':
-            data = {
-                name: document.getElementById('equipmentName').value,
-                type: document.getElementById('equipmentType').value,
-                model: document.getElementById('equipmentModel').value,
-                brand: document.getElementById('equipmentBrand').value,
-                serialNumber: document.getElementById('equipmentSerialNumber').value,
-                note: document.getElementById('equipmentNote').value,
-                status: document.getElementById('equipmentStatus').value,
-                purchaseDate: new Date().toISOString().split('T')[0]
-            };
-            await createEntity(data, apiService.createEquipment.bind(apiService), 'equipmentOutput');
-            break;
-
-        case 'fuel':
-            data = {
-                type: document.getElementById('fuelType').value,
-                quantity: parseFloat(document.getElementById('fuelQuantity').value),
-                price: parseFloat(document.getElementById('fuelPrice').value),
-                supplier: document.getElementById('fuelSupplier').value,
-                purchaseDate: new Date().toISOString().split('T')[0]
-            };
-            await createEntity(data, apiService.createFuel.bind(apiService), 'fuelOutput');
-            break;
-
-        case 'geyser':
-            data = {
-                location: document.getElementById('geyserLocation').value,
-                capacity: parseInt(document.getElementById('geyserCapacity').value),
-                status: document.getElementById('geyserStatus').value,
-                lastMaintenanceDate: new Date().toISOString().split('T')[0]
-            };
-            await createEntity(data, apiService.createGeyser.bind(apiService), 'geyserOutput');
-            break;
-
-        case 'repair':
-            data = {
-                equipmentId: parseInt(document.getElementById('repairEquipmentId').value),
-                description: document.getElementById('repairDescription').value,
-                cost: parseFloat(document.getElementById('repairCost').value),
-                status: document.getElementById('repairStatus').value,
-                repairDate: new Date().toISOString().split('T')[0]
-            };
-            await createEntity(data, apiService.createRepair.bind(apiService), 'repairOutput');
-            break;
+// Закрытие модального окна при клике вне его
+window.onclick = function (event) {
+    const modal = document.getElementById('detailsModal');
+    if (event.target == modal) {
+        closeModal();
     }
-
-    closeCreateModal();
-});
-
-async function createEntity(data, apiMethod, outputElementId) {
-    console.log(`Creating ${currentEntityType} with data:`, data);
-
-    try {
-        const result = await apiMethod(data);
-        console.log(`Create ${currentEntityType} result:`, result);
-
-        if (result && result.error) {
-            document.getElementById(outputElementId).innerHTML =
-                `<div style="color: red;">Ошибка создания: ${result.message}</div>`;
-        } else {
-            document.getElementById(outputElementId).innerHTML =
-                `<pre>✅ Создано успешно!\n${JSON.stringify(result, null, 2)}</pre>`;
-            await loadStats();
-        }
-    } catch (error) {
-        console.error(`Create ${currentEntityType} error:`, error);
-        document.getElementById(outputElementId).innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-// Equipment CRUD операции
-async function getEquipment() {
-    console.log('Getting equipment...');
-    try {
-        const result = await apiService.getEquipment();
-        console.log('Equipment result:', result);
-        document.getElementById('equipmentOutput').innerHTML =
-            `<pre>${JSON.stringify(result, null, 2)}</pre>`;
-    } catch (error) {
-        console.error('Get equipment error:', error);
-        document.getElementById('equipmentOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-async function updateEquipment() {
-    console.log('Updating equipment...');
-    try {
-        const equipmentList = await apiService.getEquipment();
-        if (equipmentList && equipmentList.length > 0) {
-            const firstEquipment = equipmentList[0];
-            console.log('Updating equipment ID:', firstEquipment.id);
-
-            const updatedEquipment = {
-                ...firstEquipment,
-                name: "Обновленное оборудование",
-                status: "Maintenance",
-                updatedAt: new Date().toISOString(),
-                // Убедимся, что обязательные поля есть
-                brand: firstEquipment.brand || "Caterpillar",
-                note: firstEquipment.note || "Обновленное оборудование"
-            };
-
-            const result = await apiService.updateEquipment(firstEquipment.id, updatedEquipment);
-            console.log('Update equipment result:', result);
-
-            if (result && result.error) {
-                document.getElementById('equipmentOutput').innerHTML =
-                    `<div style="color: red;">Ошибка обновления: ${result.message}</div>`;
-            } else {
-                document.getElementById('equipmentOutput').innerHTML =
-                    `<pre>✅ Обновлено успешно!\n${JSON.stringify(result, null, 2)}</pre>`;
-                await loadStats();
-            }
-        } else {
-            document.getElementById('equipmentOutput').innerHTML =
-                `<div style="color: orange;">Нет оборудования для обновления. Сначала создайте оборудование.</div>`;
-        }
-    } catch (error) {
-        console.error('Update equipment error:', error);
-        document.getElementById('equipmentOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-async function deleteEquipment() {
-    console.log('Deleting equipment...');
-    try {
-        const equipmentList = await apiService.getEquipment();
-        if (equipmentList && equipmentList.length > 0) {
-            const firstEquipment = equipmentList[0];
-            console.log('Deleting equipment ID:', firstEquipment.id);
-
-            if (confirm(`Вы уверены, что хотите удалить оборудование "${firstEquipment.name}"?`)) {
-                const result = await apiService.deleteEquipment(firstEquipment.id);
-                console.log('Delete equipment result:', result);
-
-                if (result && result.error) {
-                    document.getElementById('equipmentOutput').innerHTML =
-                        `<div style="color: red;">Ошибка удаления: ${result.message}</div>`;
-                } else {
-                    document.getElementById('equipmentOutput').innerHTML =
-                        `<pre>✅ Удалено успешно!\n${JSON.stringify(result, null, 2)}</pre>`;
-                    await loadStats();
-                }
-            }
-        } else {
-            document.getElementById('equipmentOutput').innerHTML =
-                `<div style="color: orange;">Нет оборудования для удаления</div>`;
-        }
-    } catch (error) {
-        console.error('Delete equipment error:', error);
-        document.getElementById('equipmentOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-// Fuel CRUD операции
-async function getFuel() {
-    console.log('Getting fuel...');
-    try {
-        const result = await apiService.getFuel();
-        console.log('Fuel result:', result);
-        document.getElementById('fuelOutput').innerHTML =
-            `<pre>${JSON.stringify(result, null, 2)}</pre>`;
-    } catch (error) {
-        console.error('Get fuel error:', error);
-        document.getElementById('fuelOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-async function updateFuel() {
-    console.log('Updating fuel...');
-    try {
-        const fuelList = await apiService.getFuel();
-        if (fuelList && fuelList.length > 0) {
-            const firstFuel = fuelList[0];
-            console.log('Updating fuel ID:', firstFuel.id);
-
-            const updatedFuel = {
-                ...firstFuel,
-                quantity: 1500,
-                price: 55.5,
-                updatedAt: new Date().toISOString()
-            };
-
-            const result = await apiService.updateFuel(firstFuel.id, updatedFuel);
-            console.log('Update fuel result:', result);
-
-            if (result && result.error) {
-                document.getElementById('fuelOutput').innerHTML =
-                    `<div style="color: red;">Ошибка обновления: ${result.message}</div>`;
-            } else {
-                document.getElementById('fuelOutput').innerHTML =
-                    `<pre>✅ Обновлено успешно!\n${JSON.stringify(result, null, 2)}</pre>`;
-                await loadStats();
-            }
-        } else {
-            document.getElementById('fuelOutput').innerHTML =
-                `<div style="color: orange;">Нет топлива для обновления. Сначала создайте топливо.</div>`;
-        }
-    } catch (error) {
-        console.error('Update fuel error:', error);
-        document.getElementById('fuelOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-async function deleteFuel() {
-    console.log('Deleting fuel...');
-    try {
-        const fuelList = await apiService.getFuel();
-        if (fuelList && fuelList.length > 0) {
-            const firstFuel = fuelList[0];
-            console.log('Deleting fuel ID:', firstFuel.id);
-
-            if (confirm(`Вы уверены, что хотите удалить топливо "${firstFuel.type}"?`)) {
-                const result = await apiService.deleteFuel(firstFuel.id);
-                console.log('Delete fuel result:', result);
-
-                if (result && result.error) {
-                    document.getElementById('fuelOutput').innerHTML =
-                        `<div style="color: red;">Ошибка удаления: ${result.message}</div>`;
-                } else {
-                    document.getElementById('fuelOutput').innerHTML =
-                        `<pre>✅ Удалено успешно!\n${JSON.stringify(result, null, 2)}</pre>`;
-                    await loadStats();
-                }
-            }
-        } else {
-            document.getElementById('fuelOutput').innerHTML =
-                `<div style="color: orange;">Нет топлива для удаления</div>`;
-        }
-    } catch (error) {
-        console.error('Delete fuel error:', error);
-        document.getElementById('fuelOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-// Geyser CRUD операции
-async function getGeysers() {
-    console.log('Getting geysers...');
-    try {
-        const result = await apiService.getGeysers();
-        console.log('Geysers result:', result);
-        document.getElementById('geyserOutput').innerHTML =
-            `<pre>${JSON.stringify(result, null, 2)}</pre>`;
-    } catch (error) {
-        console.error('Get geysers error:', error);
-        document.getElementById('geyserOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-async function updateGeyser() {
-    console.log('Updating geyser...');
-    try {
-        const geyserList = await apiService.getGeysers();
-        if (geyserList && geyserList.length > 0) {
-            const firstGeyser = geyserList[0];
-            console.log('Updating geyser ID:', firstGeyser.id);
-
-            const updatedGeyser = {
-                ...firstGeyser,
-                location: "Обновленный цех",
-                capacity: 600,
-                status: "Maintenance",
-                updatedAt: new Date().toISOString()
-            };
-
-            const result = await apiService.updateGeyser(firstGeyser.id, updatedGeyser);
-            console.log('Update geyser result:', result);
-
-            if (result && result.error) {
-                document.getElementById('geyserOutput').innerHTML =
-                    `<div style="color: red;">Ошибка обновления: ${result.message}</div>`;
-            } else {
-                document.getElementById('geyserOutput').innerHTML =
-                    `<pre>✅ Обновлено успешно!\n${JSON.stringify(result, null, 2)}</pre>`;
-                await loadStats();
-            }
-        } else {
-            document.getElementById('geyserOutput').innerHTML =
-                `<div style="color: orange;">Нет гейзеров для обновления. Сначала создайте гейзер.</div>`;
-        }
-    } catch (error) {
-        console.error('Update geyser error:', error);
-        document.getElementById('geyserOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-async function deleteGeyser() {
-    console.log('Deleting geyser...');
-    try {
-        const geyserList = await apiService.getGeysers();
-        if (geyserList && geyserList.length > 0) {
-            const firstGeyser = geyserList[0];
-            console.log('Deleting geyser ID:', firstGeyser.id);
-
-            if (confirm(`Вы уверены, что хотите удалить гейзер в "${firstGeyser.location}"?`)) {
-                const result = await apiService.deleteGeyser(firstGeyser.id);
-                console.log('Delete geyser result:', result);
-
-                if (result && result.error) {
-                    document.getElementById('geyserOutput').innerHTML =
-                        `<div style="color: red;">Ошибка удаления: ${result.message}</div>`;
-                } else {
-                    document.getElementById('geyserOutput').innerHTML =
-                        `<pre>✅ Удалено успешно!\n${JSON.stringify(result, null, 2)}</pre>`;
-                    await loadStats();
-                }
-            }
-        } else {
-            document.getElementById('geyserOutput').innerHTML =
-                `<div style="color: orange;">Нет гейзеров для удаления</div>`;
-        }
-    } catch (error) {
-        console.error('Delete geyser error:', error);
-        document.getElementById('geyserOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-// Repair CRUD операции
-async function getRepairs() {
-    console.log('Getting repairs...');
-    try {
-        const result = await apiService.getRepairs();
-        console.log('Repairs result:', result);
-        document.getElementById('repairOutput').innerHTML =
-            `<pre>${JSON.stringify(result, null, 2)}</pre>`;
-    } catch (error) {
-        console.error('Get repairs error:', error);
-        document.getElementById('repairOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-async function updateRepair() {
-    console.log('Updating repair...');
-    try {
-        const repairList = await apiService.getRepairs();
-        if (repairList && repairList.length > 0) {
-            const firstRepair = repairList[0];
-            console.log('Updating repair ID:', firstRepair.id);
-
-            const updatedRepair = {
-                ...firstRepair,
-                description: "Обновленный ремонт",
-                cost: 2000.00,
-                status: "In Progress",
-                updatedAt: new Date().toISOString()
-            };
-
-            const result = await apiService.updateRepair(firstRepair.id, updatedRepair);
-            console.log('Update repair result:', result);
-
-            if (result && result.error) {
-                document.getElementById('repairOutput').innerHTML =
-                    `<div style="color: red;">Ошибка обновления: ${result.message}</div>`;
-            } else {
-                document.getElementById('repairOutput').innerHTML =
-                    `<pre>✅ Обновлено успешно!\n${JSON.stringify(result, null, 2)}</pre>`;
-                await loadStats();
-            }
-        } else {
-            document.getElementById('repairOutput').innerHTML =
-                `<div style="color: orange;">Нет ремонтов для обновления. Сначала создайте ремонт.</div>`;
-        }
-    } catch (error) {
-        console.error('Update repair error:', error);
-        document.getElementById('repairOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
-
-async function deleteRepair() {
-    console.log('Deleting repair...');
-    try {
-        const repairList = await apiService.getRepairs();
-        if (repairList && repairList.length > 0) {
-            const firstRepair = repairList[0];
-            console.log('Deleting repair ID:', firstRepair.id);
-
-            if (confirm(`Вы уверены, что хотите удалить ремонт "${firstRepair.description}"?`)) {
-                const result = await apiService.deleteRepair(firstRepair.id);
-                console.log('Delete repair result:', result);
-
-                if (result && result.error) {
-                    document.getElementById('repairOutput').innerHTML =
-                        `<div style="color: red;">Ошибка удаления: ${result.message}</div>`;
-                } else {
-                    document.getElementById('repairOutput').innerHTML =
-                        `<pre>✅ Удалено успешно!\n${JSON.stringify(result, null, 2)}</pre>`;
-                    await loadStats();
-                }
-            }
-        } else {
-            document.getElementById('repairOutput').innerHTML =
-                `<div style="color: orange;">Нет ремонтов для удаления</div>`;
-        }
-    } catch (error) {
-        console.error('Delete repair error:', error);
-        document.getElementById('repairOutput').innerHTML =
-            `<div style="color: red;">Ошибка: ${error.message}</div>`;
-    }
-}
+};

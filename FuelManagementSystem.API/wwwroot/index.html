@@ -1,269 +1,91 @@
-﻿﻿
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fuel Management System</title>
-    <link rel="stylesheet" href="css/indexStyle.css">
+    <title>Система заправки - Панель управления</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                window.location.href = 'login.html';
-            }
-        });
-    </script>
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Система управления топливом</h1>
-            <div class="user-info">
-                <span id="userBtn">Пользователь</span>
-                <button class="crud-btn logout-btn" onclick="logout()">Выйти</button>
+    <div class="dashboard-container">
+        <!-- Шапка -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1 class="system-title">Система заправки</h1>
+                <div class="user-info">
+                    <span class="user-name" id="userName">[Имя пользователя]</span>
+                    <span class="user-role" id="userRole">[Роль]</span>
+                </div>
             </div>
-        </div>
 
-        <!-- Статистика -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Оборудование</div>
-                <div class="stat-value" id="equipmentCount">0</div>
+            <div class="header-right">
+                <nav class="main-nav">
+                    <button id="statisticsBtn" class="nav-btn" onclick="showStatisticsPage()">
+                        Статистика
+                    </button>
+                    <button class="nav-btn logout-btn" onclick="logout()">
+                        Выйти
+                    </button>
+                </nav>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">Топливо</div>
-                <div class="stat-value" id="fuelCount">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Гейзеры</div>
-                <div class="stat-value" id="geyserCount">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Ремонты</div>
-                <div class="stat-value" id="repairCount">0</div>
-            </div>
-        </div>
+        </header>
 
-        <!-- CRUD операции для Equipment -->
-        <div class="crud-section">
-            <h2 class="section-title">🏗️ Управление оборудованием</h2>
-            <div class="crud-actions">
-                <button class="crud-btn" onclick="getEquipment()">📋 Получить оборудование</button>
-                <button class="crud-btn" onclick="openCreateModal('equipment')">➕ Добавить оборудование</button>
-                <button class="crud-btn" onclick="updateEquipment()">✏️ Обновить оборудование</button>
-                <button class="crud-btn" onclick="deleteEquipment()">🗑️ Удалить оборудование</button>
-            </div>
-            <div id="equipmentOutput" class="api-output"></div>
-        </div>
+        <!-- Основное содержание -->
+        <main class="dashboard-main">
+            <div class="content-header">
+                <h2 class="section-title">Таблицы</h2>
+                <div class="controls-row">
+                    <div class="table-selection">
+                        <label for="tableSelect" class="select-label">Название таблицы</label>
+                        <select id="tableSelect" class="table-select" onchange="onTableSelect()">
+                            <option value="">-- Выберите таблицу --</option>
+                            <option value="equipment">Оборудование</option>
+                            <option value="fuel">Топливо</option>
+                            <option value="transactions">Транзакции</option>
+                            <option value="users">Пользователи</option>
+                            <option value="stations">Заправочные станции</option>
+                        </select>
+                    </div>
 
-        <!-- CRUD операции для Fuel -->
-        <div class="crud-section">
-            <h2 class="section-title">⛽ Управление топливом</h2>
-            <div class="crud-actions">
-                <button class="crud-btn" onclick="getFuel()">📋 Получить топливо</button>
-                <button class="crud-btn" onclick="openCreateModal('fuel')">➕ Добавить топливо</button>
-                <button class="crud-btn" onclick="updateFuel()">✏️ Обновить топливо</button>
-                <button class="crud-btn" onclick="deleteFuel()">🗑️ Удалить топливо</button>
+                    <button id="generateBtn" class="generate-btn" onclick="generateData()" disabled>
+                        генерация данных
+                    </button>
+                </div>
             </div>
-            <div id="fuelOutput" class="api-output"></div>
-        </div>
 
-        <!-- CRUD операции для Geyser -->
-        <div class="crud-section">
-            <h2 class="section-title">🔥 Управление гейзерами</h2>
-            <div class="crud-actions">
-                <button class="crud-btn" onclick="getGeysers()">📋 Получить гейзеры</button>
-                <button class="crud-btn" onclick="openCreateModal('geyser')">➕ Добавить гейзер</button>
-                <button class="crud-btn" onclick="updateGeyser()">✏️ Обновить гейзер</button>
-                <button class="crud-btn" onclick="deleteGeyser()">🗑️ Удалить гейзер</button>
-            </div>
-            <div id="geyserOutput" class="api-output"></div>
-        </div>
+            <!-- Область для данных таблицы -->
+            <div class="data-container">
+                <div id="loading" class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Загрузка данных...</p>
+                </div>
 
-        <!-- CRUD операции для Repair -->
-        <div class="crud-section">
-            <h2 class="section-title">🔧 Управление ремонтами</h2>
-            <div class="crud-actions">
-                <button class="crud-btn" onclick="getRepairs()">📋 Получить ремонты</button>
-                <button class="crud-btn" onclick="openCreateModal('repair')">➕ Добавить ремонт</button>
-                <button class="crud-btn" onclick="updateRepair()">✏️ Обновить ремонт</button>
-                <button class="crud-btn" onclick="deleteRepair()">🗑️ Удалить ремонт</button>
+                <div id="noData" class="no-data">
+                    <p>Выберите таблицу и нажмите "генерация данных"</p>
+                </div>
+
+                <div id="dataTableContainer" class="table-container" style="display: none;">
+                    <table class="data-table">
+                        <thead id="tableHeader">
+                            <!-- Заголовки будут заполнены динамически -->
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Данные будут заполнены динамически -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div id="repairOutput" class="api-output"></div>
-        </div>
+        </main>
     </div>
 
-    <!-- Модальное окно для создания объектов -->
-    <div id="createModal" class="modal" style="display: none;">
+    <!-- Модальное окно для подробного просмотра -->
+    <div id="detailsModal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeCreateModal()">&times;</span>
-            <h2 id="modalTitle">Добавить оборудование</h2>
-            <form id="createForm">
-                <div id="equipmentFields" class="form-fields">
-                    <div class="form-group">
-                        <label for="equipmentName">Название *</label>
-                        <input type="text" id="equipmentName" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="equipmentType">Тип *</label>
-                        <input type="text" id="equipmentType" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="equipmentModel">Модель *</label>
-                        <input type="text" id="equipmentModel" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="equipmentBrand">Бренд *</label>
-                        <input type="text" id="equipmentBrand" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="equipmentSerialNumber">Серийный номер *</label>
-                        <input type="text" id="equipmentSerialNumber" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="equipmentNote">Примечание *</label>
-                        <textarea id="equipmentNote" class="form-control" rows="3" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="equipmentStatus">Статус *</label>
-                        <select id="equipmentStatus" class="form-control" required>
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                            <option value="Maintenance">Maintenance</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div id="fuelFields" class="form-fields" style="display: none;">
-                    <div class="form-group">
-                        <label for="fuelType">Тип топлива *</label>
-                        <input type="text" id="fuelType" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="fuelQuantity">Количество *</label>
-                        <input type="number" id="fuelQuantity" class="form-control" step="0.01" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="fuelPrice">Цена *</label>
-                        <input type="number" id="fuelPrice" class="form-control" step="0.01" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="fuelSupplier">Поставщик *</label>
-                        <input type="text" id="fuelSupplier" class="form-control" required>
-                    </div>
-                </div>
-
-                <div id="geyserFields" class="form-fields" style="display: none;">
-                    <div class="form-group">
-                        <label for="geyserLocation">Местоположение *</label>
-                        <input type="text" id="geyserLocation" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="geyserCapacity">Вместимость *</label>
-                        <input type="number" id="geyserCapacity" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="geyserStatus">Статус *</label>
-                        <select id="geyserStatus" class="form-control" required>
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                            <option value="Maintenance">Maintenance</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div id="repairFields" class="form-fields" style="display: none;">
-                    <div class="form-group">
-                        <label for="repairEquipmentId">ID оборудования *</label>
-                        <input type="number" id="repairEquipmentId" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="repairDescription">Описание *</label>
-                        <textarea id="repairDescription" class="form-control" rows="3" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="repairCost">Стоимость *</label>
-                        <input type="number" id="repairCost" class="form-control" step="0.01" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="repairStatus">Статус *</label>
-                        <select id="repairStatus" class="form-control" required>
-                            <option value="Pending">Pending</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">Создать</button>
-                </div>
-            </form>
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="modalContent"></div>
         </div>
     </div>
-
-    <!-- Стили для модального окна -->
-    <style>
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .close {
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            color: #666;
-        }
-
-            .close:hover {
-                color: #000;
-            }
-
-        .form-fields {
-            margin: 20px 0;
-        }
-
-        .modal-content h2 {
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #061f8a 0%, #9656d6 100%);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-            .btn-primary:hover {
-                opacity: 0.9;
-            }
-    </style>
 
     <script src="js/api.js"></script>
     <script src="js/dashboard.js"></script>
