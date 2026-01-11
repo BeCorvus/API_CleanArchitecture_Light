@@ -19,6 +19,19 @@ class ApiService {
         localStorage.removeItem('authToken');
     }
 
+    // Проверка валидности токена
+    async validateToken() {
+        try {
+            const response = await this.request('/Users/profile', {
+                method: 'GET'
+            });
+            return response && response.username;
+        } catch (error) {
+            console.error('Token validation failed:', error);
+            return false;
+        }
+    }
+
     // Базовый метод для HTTP запросов
     async request(endpoint, options = {}) {
         const url = `${API_BASE_URL}${endpoint}`;
@@ -26,9 +39,10 @@ class ApiService {
         console.log('📤 API Request:', {
             url: url,
             method: options.method || 'GET',
+            endpoint: endpoint,
             body: options.body,
             headers: options.headers
-        }); // Подробное логирование
+        });
 
         const config = {
             headers: {
@@ -43,9 +57,9 @@ class ApiService {
             config.headers['Authorization'] = `Bearer ${this.token}`;
         }
 
-        if (options.body) {
+        if (options.body && typeof options.body === 'object') {
             config.body = JSON.stringify(options.body);
-            console.log('📦 Request body (stringified):', config.body); // Логируем строку
+            console.log('📦 Request body (stringified):', config.body);
         }
 
         try {
@@ -54,33 +68,64 @@ class ApiService {
             console.log('📥 API Response:', {
                 status: response.status,
                 statusText: response.statusText,
-                url: response.url
+                url: response.url,
+                ok: response.ok
             });
+
+            // Для DELETE запросов может не быть тела
+            if (response.status === 204) {
+                console.log('✅ 204 No Content - успешное удаление');
+                return { success: true, message: 'Удалено успешно' };
+            }
 
             if (response.status === 401) {
                 // Неавторизован - перенаправляем на логин
+                console.warn('❌ 401 Unauthorized - перенаправление на логин');
                 this.clearToken();
                 window.location.href = '/login.html';
-                return null;
+                throw new Error('Unauthorized');
             }
 
             if (!response.ok) {
-                const errorText = await response.text();
+                let errorText = '';
+                try {
+                    // Пытаемся получить JSON ошибки
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const errorJson = await response.json();
+                        errorText = JSON.stringify(errorJson);
+                    } else {
+                        errorText = await response.text();
+                    }
+                } catch (e) {
+                    errorText = 'Не удалось прочитать ошибку';
+                }
+
                 console.error('❌ API Error Response:', errorText);
                 throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
             }
 
-            // Для DELETE запросов может не быть тела
-            if (response.status === 204) {
-                return { success: true, message: 'Удалено успешно' };
+            // Проверяем, есть ли тело ответа
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const responseData = await response.json();
+                console.log('✅ API Success Response:', responseData);
+                return responseData;
+            } else {
+                // Если ответ не JSON, возвращаем текст
+                const text = await response.text();
+                console.log('✅ API Success Response (text):', text);
+                return text;
             }
-
-            const responseData = await response.json();
-            console.log('✅ API Success Response:', responseData);
-            return responseData;
         } catch (error) {
             console.error('❌ API request failed:', error);
-            throw error;
+            // Не бросаем ошибку дальше, чтобы не ломать интерфейс
+            // Вместо этого возвращаем объект с ошибкой
+            return {
+                error: true,
+                message: error.message,
+                status: error.status || 0
+            };
         }
     }
 
@@ -101,7 +146,13 @@ class ApiService {
 
     // CRUD операции для Equipment
     async getEquipment() {
-        return await this.request('/Equipment');
+        const result = await this.request('/Equipment');
+        // Если результат содержит error, возвращаем пустой массив
+        if (result && result.error) {
+            console.warn('Ошибка при получении оборудования, возвращаем пустой массив');
+            return [];
+        }
+        return result || [];
     }
 
     async getEquipmentById(id) {
@@ -130,7 +181,12 @@ class ApiService {
 
     // CRUD операции для Fuel
     async getFuel() {
-        return await this.request('/Fuel');
+        const result = await this.request('/Fuel');
+        if (result && result.error) {
+            console.warn('Ошибка при получении топлива, возвращаем пустой массив');
+            return [];
+        }
+        return result || [];
     }
 
     async createFuel(fuel) {
@@ -155,7 +211,12 @@ class ApiService {
 
     // CRUD операции для Geyser
     async getGeysers() {
-        return await this.request('/Geyser');
+        const result = await this.request('/Geyser');
+        if (result && result.error) {
+            console.warn('Ошибка при получении гейзеров, возвращаем пустой массив');
+            return [];
+        }
+        return result || [];
     }
 
     async createGeyser(geyser) {
@@ -180,7 +241,12 @@ class ApiService {
 
     // CRUD операции для Repair
     async getRepairs() {
-        return await this.request('/Repair');
+        const result = await this.request('/Repair');
+        if (result && result.error) {
+            console.warn('Ошибка при получении ремонтов, возвращаем пустой массив');
+            return [];
+        }
+        return result || [];
     }
 
     async createRepair(repair) {
