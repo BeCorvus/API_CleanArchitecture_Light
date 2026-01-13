@@ -24,6 +24,18 @@ function showTab(tabName) {
 
     // Скрываем сообщения
     hideMessage();
+
+    // Очищаем поля форм при переключении вкладок
+    document.querySelectorAll('.auth-form input, .auth-form textarea').forEach(field => {
+        field.value = '';
+    });
+
+    // Сбрасываем индикатор сложности пароля
+    const strengthBar = document.getElementById('strengthBar');
+    if (strengthBar) {
+        strengthBar.className = 'strength-bar';
+        strengthBar.style.width = '0%';
+    }
 }
 
 // Показать/скрыть пароль
