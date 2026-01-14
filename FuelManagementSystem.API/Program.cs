@@ -68,6 +68,8 @@ internal class Program
         builder.Services.AddScoped<IRepairRepository, RepairRepository>();
         builder.Services.AddScoped<IRoleRepository, RoleRepository>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<IUsersRoleRepository, UsersRoleRepository>();
+        builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 
         // Services
         builder.Services.AddScoped<IJwtService, JwtService>();
