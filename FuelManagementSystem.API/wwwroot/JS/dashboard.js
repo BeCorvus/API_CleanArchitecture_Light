@@ -1,12 +1,22 @@
-﻿// Глобальные переменные
+﻿// dashboard.js
+// Глобальные переменные
 let currentTable = '';
 let currentData = [];
 
-// Проверка авторизации при загрузке
+// Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function () {
+    console.log('🚀 Инициализация панели управления...');
     checkAuth();
     setupEventListeners();
+    initDashboard();
 });
+
+// Инициализация дашборда
+function initDashboard() {
+    console.log('✅ Дашборд инициализирован');
+    // Очищаем таблицу при инициализации
+    clearTable();
+}
 
 // Проверка авторизации
 async function checkAuth() {
@@ -29,7 +39,7 @@ async function checkAuth() {
         document.getElementById('userRole').textContent = userRole;
 
         // Скрываем кнопку статистики для не-админов
-        if (userRole !== 'Admin') {
+        if (userRole !== 'Admin' && userRole !== 'admin') {
             const statsBtn = document.getElementById('statisticsBtn');
             if (statsBtn) {
                 statsBtn.style.display = 'none';
@@ -45,6 +55,14 @@ function setupEventListeners() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', logout);
     }
+
+    // Закрытие модального окна
+    window.addEventListener('click', function (event) {
+        const modal = document.getElementById('detailsModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    });
 }
 
 // Выход из системы
@@ -68,14 +86,31 @@ function onTableSelect() {
     if (tableSelect.value) {
         generateBtn.disabled = false;
         currentTable = tableSelect.value;
+        // АВТОМАТИЧЕСКАЯ ЗАГРУЗКА ДАННЫХ ПРИ ВЫБОРЕ ТАБЛИЦЫ
+        generateData();
     } else {
         generateBtn.disabled = true;
+        currentTable = '';
+        // Очищаем таблицу при сбросе выбора
+        clearTable();
     }
 }
 
-// Генерация данных
+// Обновление данных (синоним для generateData)
+function refreshData() {
+    if (currentTable) {
+        generateData();
+    } else {
+        showNotification('Сначала выберите таблицу', 'warning');
+    }
+}
+
+// Загрузка данных (вызывается автоматически при выборе и по кнопке)
 async function generateData() {
-    if (!currentTable) return;
+    if (!currentTable) {
+        showNotification('Выберите таблицу', 'error');
+        return;
+    }
 
     const loading = document.getElementById('loading');
     const noData = document.getElementById('noData');
@@ -87,17 +122,26 @@ async function generateData() {
     tableContainer.style.display = 'none';
 
     try {
-        // Получаем данные из API или используем моковые данные
+        // Получаем данные
         currentData = await fetchTableData(currentTable);
 
-        // Отображаем данные
-        displayTableData(currentData);
-
-        tableContainer.style.display = 'block';
+        // Проверяем данные
+        if (!currentData || currentData.length === 0) {
+            noData.textContent = 'В таблице нет данных';
+            noData.style.display = 'block';
+            tableContainer.style.display = 'none';
+            showNotification('Данные не найдены', 'info');
+        } else {
+            // Отображаем данные
+            displayTableData(currentData);
+            tableContainer.style.display = 'block';
+            showNotification(`Загружено записей: ${currentData.length}`, 'success');
+        }
     } catch (error) {
         console.error('Error generating data:', error);
-        noData.textContent = 'Ошибка загрузки данных';
+        noData.textContent = 'Ошибка загрузки данных: ' + (error.message || 'Неизвестная ошибка');
         noData.style.display = 'block';
+        showNotification('Ошибка при загрузке данных', 'error');
     } finally {
         loading.classList.remove('active');
     }
@@ -106,15 +150,74 @@ async function generateData() {
 // Получение данных таблицы
 async function fetchTableData(tableName) {
     try {
-        // В реальном приложении здесь будет вызов API
-        // return await apiService.getTableData(tableName);
+        // Определяем эндпоинты
+        const endpoints = {
+            equipment: '/equipment',
+            fuel: '/fuel',
+            geyser: '/geyser',
+            users: '/user',
+            repair: '/repair',
+            roles: '/role'
+        };
 
-        // Моковые данные для демонстрации
-        return getMockData(tableName);
+        const endpoint = endpoints[tableName];
+        if (!endpoint) {
+            console.warn(`Нет эндпоинта для таблицы: ${tableName}`);
+            return [];
+        }
+
+        console.log(`Запрос к: ${endpoint}`);
+
+        // Используем apiService для запроса
+        const response = await apiService.request(endpoint);
+
+        // Проверяем ответ
+        if (!response) {
+            throw new Error('Сервер не вернул данные');
+        }
+
+        // Если ответ не массив, преобразуем его
+        let data = response;
+        if (!Array.isArray(response)) {
+            data = convertToArray(response);
+        }
+
+        return data;
     } catch (error) {
-        console.error('Error fetching table data:', error);
-        throw error;
+        console.error(`Ошибка загрузки ${tableName}:`, error);
+        showNotification('Ошибка при загрузке данных с сервера', 'error');
+        return [];
     }
+}
+
+// Преобразование ответа в массив
+function convertToArray(response) {
+    // Если ответ уже массив
+    if (Array.isArray(response)) {
+        return response;
+    }
+
+    // Если ответ - объект, проверяем, не содержит ли он массив
+    if (response && typeof response === 'object') {
+        // Ищем массив в стандартных свойствах
+        const arrayProperties = ['data', 'items', 'results', 'records'];
+        for (const prop of arrayProperties) {
+            if (response[prop] && Array.isArray(response[prop])) {
+                return response[prop];
+            }
+        }
+
+        // Если объект содержит ID, оборачиваем в массив
+        const idFields = ['id', 'Id', 'IdUsers', 'IdEquipment', 'IdFuel', 'IdGeyser', 'IdRepair', 'IdRoles'];
+        for (const field of idFields) {
+            if (response[field] !== undefined) {
+                return [response];
+            }
+        }
+    }
+
+    // В остальных случаях - пустой массив
+    return [];
 }
 
 // Отображение данных в таблице
@@ -127,35 +230,48 @@ function displayTableData(data) {
     tableBody.innerHTML = '';
 
     if (!data || data.length === 0) {
-        document.getElementById('noData').style.display = 'block';
-        document.getElementById('dataTableContainer').style.display = 'none';
         return;
     }
 
-    // Создаем заголовки на основе ключей первого объекта
-    const headers = Object.keys(data[0]);
+    // Создаем заголовки
+    const firstItem = data[0];
+    const headers = Object.keys(firstItem);
+
+    // Исключаем технические поля
+    const excludedFields = ['dateOfRecording', 'dateOfChange', 'whoRecorded',
+        'whoChanged', 'whenDeleted', 'passwordHash',
+        'resetToken', 'resetTokenExpiry'];
+    const displayHeaders = headers.filter(header =>
+        !excludedFields.includes(header.toLowerCase())
+    );
+
     const headerRow = document.createElement('tr');
 
-    headers.forEach(header => {
+    displayHeaders.forEach(header => {
         const th = document.createElement('th');
         th.textContent = formatHeader(header);
         headerRow.appendChild(th);
     });
 
-    // Добавляем заголовок для действий
+    // Добавляем столбец действий
     const actionsTh = document.createElement('th');
     actionsTh.textContent = 'Действия';
     headerRow.appendChild(actionsTh);
 
     tableHeader.appendChild(headerRow);
 
-    // Заполняем тело таблицы
-    data.forEach((row, index) => {
+    // Заполняем таблицу
+    data.forEach((row) => {
         const tableRow = document.createElement('tr');
 
-        headers.forEach(header => {
+        displayHeaders.forEach(header => {
             const td = document.createElement('td');
-            td.textContent = row[header] || '-';
+            let value = row[header];
+
+            // Форматируем значение
+            value = formatValue(value);
+
+            td.textContent = value;
             tableRow.appendChild(td);
         });
 
@@ -166,7 +282,8 @@ function displayTableData(data) {
         const viewBtn = document.createElement('button');
         viewBtn.className = 'action-btn view-btn';
         viewBtn.textContent = '👁️';
-        viewBtn.onclick = () => viewDetails(row);
+        viewBtn.title = 'Просмотреть подробности';
+        viewBtn.onclick = () => viewDetails(row, displayHeaders);
         actionsTd.appendChild(viewBtn);
 
         tableRow.appendChild(actionsTd);
@@ -174,30 +291,124 @@ function displayTableData(data) {
     });
 }
 
-// Форматирование заголовков
-function formatHeader(header) {
-    const words = header.replace(/([A-Z])/g, ' $1').trim().split(' ');
-    return words.map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+// Форматирование значения
+function formatValue(value) {
+    if (value === null || value === undefined) {
+        return '-';
+    }
+
+    if (typeof value === 'boolean') {
+        return value ? 'Да' : 'Нет';
+    }
+
+    if (typeof value === 'number') {
+        // Форматируем валюту
+        if (value.toString().includes('.') || value.toString().includes(',')) {
+            return value.toFixed(2).replace('.', ',') + ' ₽';
+        }
+        return value.toLocaleString('ru-RU');
+    }
+
+    if (typeof value === 'string') {
+        // Проверяем, является ли строка датой
+        const dateRegex = /^\d{4}-\d{2}-\d{2}/;
+        if (dateRegex.test(value)) {
+            try {
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                    return date.toLocaleDateString('ru-RU');
+                }
+            } catch (e) {
+                // Не удалось распарсить как дату
+            }
+        }
+        return value;
+    }
+
+    return String(value);
 }
 
-// Просмотр деталей записи
-function viewDetails(data) {
+// Форматирование заголовка
+function formatHeader(header) {
+    const translations = {
+        'id': 'ID',
+        'idequipment': 'ID Оборудования',
+        'idfuel': 'ID Топлива',
+        'idgeyser': 'ID Колонки',
+        'idrepair': 'ID Ремонта',
+        'idroles': 'ID Роли',
+        'idusers': 'ID Пользователя',
+        'name': 'Название',
+        'brand': 'Бренд',
+        'type': 'Тип',
+        'status': 'Статус',
+        'location': 'Местоположение',
+        'lastmaintenance': 'Последнее обслуживание',
+        'quantity': 'Количество',
+        'unit': 'Единица',
+        'price': 'Цена',
+        'supplier': 'Поставщик',
+        'date': 'Дата',
+        'fueltype': 'Тип топлива',
+        'amount': 'Сумма',
+        'operator': 'Оператор',
+        'username': 'Имя пользователя',
+        'email': 'Email',
+        'role': 'Роль',
+        'lastlogin': 'Последний вход',
+        'note': 'Примечание',
+        'shelflife': 'Срок годности',
+        'manufacturer': 'Производитель',
+        'cost': 'Стоимость',
+        'yearofrelease': 'Год выпуска',
+        'dateofrepair': 'Дата ремонта',
+        'releasedate': 'Дата выпуска',
+        'repairman': 'Ремонтник',
+        'namerole': 'Название роли',
+        'login': 'Логин',
+        'permissions': 'Права доступа',
+        'description': 'Описание',
+        'createddate': 'Дата создания',
+        'modifieddate': 'Дата изменения',
+        'isactive': 'Активен'
+    };
+
+    const lowerHeader = header.toLowerCase();
+    if (translations[lowerHeader]) {
+        return translations[lowerHeader];
+    }
+
+    // Форматируем camelCase
+    const words = header.replace(/([A-Z])/g, ' $1').trim().split(' ');
+    return words.map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+}
+
+// Просмотр деталей
+function viewDetails(data, displayHeaders = null) {
     const modal = document.getElementById('detailsModal');
     const modalContent = document.getElementById('modalContent');
 
     let html = '<h3>Подробная информация</h3>';
     html += '<div class="details-container">';
 
-    Object.entries(data).forEach(([key, value]) => {
+    const fieldsToShow = displayHeaders || Object.keys(data);
+
+    fieldsToShow.forEach(key => {
+        let value = data[key];
+        value = formatValue(value);
+
         html += `
             <div class="detail-row">
                 <span class="detail-label">${formatHeader(key)}:</span>
-                <span class="detail-value">${value || '-'}</span>
+                <span class="detail-value">${value}</span>
             </div>
         `;
     });
 
     html += '</div>';
+
     modalContent.innerHTML = html;
     modal.style.display = 'flex';
 }
@@ -207,53 +418,56 @@ function closeModal() {
     document.getElementById('detailsModal').style.display = 'none';
 }
 
-// Моковые данные для демонстрации
-function getMockData(tableName) {
-    const mockData = {
-        equipment: [
-            { id: 1, name: 'Насос дизельный', type: 'Насос', status: 'Активен', location: 'Цех 1', lastMaintenance: '2024-01-15' },
-            { id: 2, name: 'Резервуар 1000л', type: 'Резервуар', status: 'На ремонте', location: 'Цех 2', lastMaintenance: '2024-01-10' },
-            { id: 3, name: 'Топливопровод', type: 'Трубопровод', status: 'Активен', location: 'Цех 1', lastMaintenance: '2024-01-12' },
-            { id: 4, name: 'Контроллер уровня', type: 'Электроника', status: 'Активен', location: 'Цех 3', lastMaintenance: '2024-01-14' },
-            { id: 5, name: 'Фильтр тонкой очистки', type: 'Фильтр', status: 'Заменен', location: 'Цех 2', lastMaintenance: '2024-01-18' }
-        ],
-        fuel: [
-            { id: 1, type: 'Дизель', quantity: 1500, unit: 'литры', price: 55.5, supplier: 'Лукойл', date: '2024-01-15' },
-            { id: 2, type: 'Бензин АИ-95', quantity: 2000, unit: 'литры', price: 52.3, supplier: 'Газпромнефть', date: '2024-01-14' },
-            { id: 3, type: 'Бензин АИ-92', quantity: 1800, unit: 'литры', price: 48.7, supplier: 'Роснефть', date: '2024-01-13' },
-            { id: 4, type: 'Масло моторное', quantity: 200, unit: 'литры', price: 350, supplier: 'Shell', date: '2024-01-12' },
-            { id: 5, type: 'Антифриз', quantity: 150, unit: 'литры', price: 120, supplier: 'Mobil', date: '2024-01-11' }
-        ],
-        transactions: [
-            { id: 1, date: '2024-01-15', type: 'Заправка', fuelType: 'Дизель', quantity: 50, amount: 2775, operator: 'Иванов И.И.' },
-            { id: 2, date: '2024-01-14', type: 'Заправка', fuelType: 'Бензин АИ-95', quantity: 35, amount: 1830.5, operator: 'Петров П.П.' },
-            { id: 3, date: '2024-01-13', type: 'Поступление', fuelType: 'Дизель', quantity: 1000, amount: 55500, operator: 'Сидоров С.С.' },
-            { id: 4, date: '2024-01-12', type: 'Заправка', fuelType: 'Бензин АИ-92', quantity: 40, amount: 1948, operator: 'Иванов И.И.' },
-            { id: 5, date: '2024-01-11', type: 'Списание', fuelType: 'Масло', quantity: 10, amount: 3500, operator: 'Петров П.П.' }
-        ],
-        users: [
-            { id: 1, username: 'admin', email: 'admin@system.ru', role: 'Admin', status: 'Активен', lastLogin: '2024-01-15' },
-            { id: 2, username: 'operator1', email: 'op1@system.ru', role: 'Operator', status: 'Активен', lastLogin: '2024-01-15' },
-            { id: 3, username: 'operator2', email: 'op2@system.ru', role: 'Operator', status: 'Активен', lastLogin: '2024-01-14' },
-            { id: 4, username: 'manager', email: 'manager@system.ru', role: 'Manager', status: 'Активен', lastLogin: '2024-01-13' },
-            { id: 5, username: 'guest', email: 'guest@system.ru', role: 'Guest', status: 'Не активен', lastLogin: '2024-01-10' }
-        ],
-        stations: [
-            { id: 1, name: 'Станция №1', location: 'Цех 1', type: 'Основная', status: 'Работает', fuelTypes: 'Дизель, Бензин', lastService: '2024-01-15' },
-            { id: 2, name: 'Станция №2', location: 'Цех 2', type: 'Резервная', status: 'На обслуживании', fuelTypes: 'Дизель', lastService: '2024-01-14' },
-            { id: 3, name: 'Станция №3', location: 'Цех 3', type: 'Мобильная', status: 'Работает', fuelTypes: 'Бензин', lastService: '2024-01-13' },
-            { id: 4, name: 'Станция №4', location: 'Склад', type: 'Основная', status: 'Работает', fuelTypes: 'Дизель, Бензин, Масло', lastService: '2024-01-12' },
-            { id: 5, name: 'Станция №5', location: 'Гараж', type: 'Резервная', status: 'Отключена', fuelTypes: 'Дизель', lastService: '2024-01-10' }
-        ]
-    };
+// Очистка таблицы
+function clearTable() {
+    const tableHeader = document.getElementById('tableHeader');
+    const tableBody = document.getElementById('tableBody');
+    const tableContainer = document.getElementById('dataTableContainer');
+    const noData = document.getElementById('noData');
 
-    return mockData[tableName] || [];
+    tableHeader.innerHTML = '';
+    tableBody.innerHTML = '';
+    tableContainer.style.display = 'none';
+    noData.style.display = 'block';
 }
 
-// Закрытие модального окна при клике вне его
-window.onclick = function (event) {
-    const modal = document.getElementById('detailsModal');
-    if (event.target == modal) {
-        closeModal();
-    }
-};
+// Показ уведомления
+function showNotification(message, type = 'info') {
+    // Создаем элемент уведомления
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+
+    // Стили
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${type === 'error' ? '#f8d7da' : type === 'success' ? '#d4edda' : type === 'warning' ? '#fff3cd' : '#d1ecf1'};
+        color: ${type === 'error' ? '#721c24' : type === 'success' ? '#155724' : type === 'warning' ? '#856404' : '#0c5460'};
+        border: 1px solid ${type === 'error' ? '#f5c6cb' : type === 'success' ? '#c3e6cb' : type === 'warning' ? '#ffeaa7' : '#bee5eb'};
+        border-radius: 8px;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        max-width: 400px;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 14px;
+    `;
+
+    document.body.appendChild(notification);
+
+    // Автоматическое скрытие
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+// Экспорт функций
+window.showStatisticsPage = showStatisticsPage;
+window.logout = logout;
+window.onTableSelect = onTableSelect;
+window.generateData = generateData;
+window.refreshData = refreshData;
+window.viewDetails = viewDetails;
+window.closeModal = closeModal;

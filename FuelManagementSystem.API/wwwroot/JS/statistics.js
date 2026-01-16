@@ -82,7 +82,7 @@ function initChart() {
     currentChart = new Chart(ctx, initialConfig);
 }
 
-// Загрузка статистики
+// Загрузка статистики (автоматически при выборе таблицы)
 async function loadStatistics() {
     const tableSelect = document.getElementById('statTableSelect');
     const chartTypeSelect = document.getElementById('chartTypeSelect');
@@ -99,7 +99,7 @@ async function loadStatistics() {
 
     try {
         // Получаем данные для статистики
-        const chartData = await fetchChartData(tableSelect.value);
+        const chartData = await fetchChartData(tableSelect.value, chartTypeSelect.value);
 
         // Обновляем диаграмму
         updateChart(chartData, chartTypeSelect.value);
@@ -116,17 +116,134 @@ async function loadStatistics() {
 }
 
 // Получение данных для диаграммы
-async function fetchChartData(tableName) {
+async function fetchChartData(tableName, chartType) {
     try {
-        // В реальном приложении здесь будет вызов API
-        // return await apiService.getTableStats(tableName);
+        // Загружаем данные из таблицы
+        const data = await apiService.request(`/${tableName}`);
 
-        // Моковые данные для демонстрации
-        return getMockChartData(tableName);
+        // Преобразуем данные в формат для диаграммы
+        return formatChartData(tableName, data, chartType);
     } catch (error) {
         console.error('Error fetching chart data:', error);
-        throw error;
+        return getDefaultChartData(tableName);
     }
+}
+
+// Форматирование данных для диаграммы
+function formatChartData(tableName, data, chartType) {
+    let chartData = {
+        labels: [],
+        data: [],
+        title: getChartTitle(tableName)
+    };
+
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        return chartData;
+    }
+
+    // Обработка данных в зависимости от таблицы
+    switch (tableName) {
+        case 'equipment':
+            // Статистика оборудования по брендам
+            const brands = {};
+            data.forEach(item => {
+                const brand = item.brand || 'Не указан';
+                brands[brand] = (brands[brand] || 0) + 1;
+            });
+            chartData.labels = Object.keys(brands);
+            chartData.data = Object.values(brands);
+            break;
+
+        case 'fuel':
+            // Статистика топлива по брендам и стоимости
+            const fuelBrands = {};
+            data.forEach(item => {
+                const brand = item.brand || 'Не указан';
+                fuelBrands[brand] = (fuelBrands[brand] || 0) + 1;
+            });
+            chartData.labels = Object.keys(fuelBrands);
+            chartData.data = Object.values(fuelBrands);
+            break;
+
+        case 'geyser':
+            // Статистика колонок по году выпуска
+            const years = {};
+            data.forEach(item => {
+                const year = item.yearOfRelease || 'Не указан';
+                years[year] = (years[year] || 0) + 1;
+            });
+            chartData.labels = Object.keys(years);
+            chartData.data = Object.values(years);
+            break;
+
+        case 'users':
+            // Статистика пользователей по ролям
+            const userRoles = {};
+            data.forEach(item => {
+                const role = item.role || item.IdRoles || 'Не указана';
+                userRoles[role] = (userRoles[role] || 0) + 1;
+            });
+            chartData.labels = Object.keys(userRoles);
+            chartData.data = Object.values(userRoles);
+            break;
+
+        case 'repair':
+            // Статистика ремонтов по стоимости (группировка)
+            const costGroups = {
+                'До 5000 ₽': 0,
+                '5000-10000 ₽': 0,
+                '10000-20000 ₽': 0,
+                'Более 20000 ₽': 0
+            };
+
+            data.forEach(item => {
+                const cost = item.cost || 0;
+                if (cost <= 5000) costGroups['До 5000 ₽']++;
+                else if (cost <= 10000) costGroups['5000-10000 ₽']++;
+                else if (cost <= 20000) costGroups['10000-20000 ₽']++;
+                else costGroups['Более 20000 ₽']++;
+            });
+
+            chartData.labels = Object.keys(costGroups);
+            chartData.data = Object.values(costGroups);
+            break;
+
+        case 'roles':
+            // Статистика ролей (просто количество)
+            chartData.labels = data.map(role => role.name || 'Без названия');
+            chartData.data = data.map(role => 1); // Каждая роль = 1
+            break;
+
+        default:
+            // По умолчанию - количество записей
+            chartData.labels = ['Записей в таблице'];
+            chartData.data = [data.length];
+    }
+
+    return chartData;
+}
+
+// Получение заголовка для диаграммы
+function getChartTitle(tableName) {
+    const titles = {
+        equipment: 'Статистика оборудования по брендам',
+        fuel: 'Распределение топлива по брендам',
+        geyser: 'Распределение колонок по году выпуска',
+        users: 'Распределение пользователей по ролям',
+        repair: 'Статистика ремонтов по стоимости',
+        roles: 'Распределение ролей'
+    };
+
+    return titles[tableName] || `Статистика таблицы ${tableName}`;
+}
+
+// Заглушки для диаграмм при отсутствии данных
+function getDefaultChartData(tableName) {
+    return {
+        labels: ['Нет данных'],
+        data: [0],
+        title: getChartTitle(tableName)
+    };
 }
 
 // Обновление диаграммы
@@ -269,18 +386,18 @@ function showChartStats(chartData) {
 
     const data = chartData.data;
     const total = data.reduce((sum, value) => sum + value, 0);
-    const average = total / data.length;
-    const max = Math.max(...data);
-    const min = Math.min(...data);
+    const average = data.length > 0 ? total / data.length : 0;
+    const max = data.length > 0 ? Math.max(...data) : 0;
+    const min = data.length > 0 ? Math.min(...data) : 0;
 
     statsContainer.innerHTML = `
         <div class="stat-card">
             <div class="stat-value">${total.toLocaleString()}</div>
-            <div class="stat-label">Всего</div>
+            <div class="stat-label">Всего записей</div>
         </div>
         <div class="stat-card">
             <div class="stat-value">${average.toFixed(2)}</div>
-            <div class="stat-label">Среднее</div>
+            <div class="stat-label">Среднее значение</div>
         </div>
         <div class="stat-card">
             <div class="stat-value">${max}</div>
@@ -305,7 +422,7 @@ function exportChart(format) {
 
     if (format === 'png') {
         link.href = canvas.toDataURL('image/png');
-        link.download = `диаграмма_${new Date().toISOString().split('T')[0]}.png`;
+        link.download = `статистика_${new Date().toISOString().split('T')[0]}.png`;
     }
 
     link.click();
@@ -335,45 +452,9 @@ function changeChartTheme(theme) {
     currentChart.update();
 }
 
-// Моковые данные для диаграмм
-function getMockChartData(tableName) {
-    const mockData = {
-        equipment: {
-            labels: ['Активен', 'На ремонте', 'Отключен', 'Резерв'],
-            data: [65, 15, 10, 10],
-            title: 'Статус оборудования'
-        },
-        fuel: {
-            labels: ['Дизель', 'Бензин 95', 'Бензин 92', 'Масло', 'Антифриз'],
-            data: [1500, 2000, 1800, 200, 150],
-            title: 'Остатки топлива (литры)'
-        },
-        transactions: {
-            labels: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн'],
-            data: [120, 190, 150, 170, 156, 165],
-            title: 'Количество транзакций по месяцам'
-        },
-        users: {
-            labels: ['Администраторы', 'Операторы', 'Менеджеры', 'Техники', 'Гости'],
-            data: [3, 15, 8, 12, 25],
-            title: 'Распределение пользователей по ролям'
-        },
-        stations: {
-            labels: ['Станция 1', 'Станция 2', 'Станция 3', 'Станция 4', 'Станция 5'],
-            data: [450, 520, 380, 610, 490],
-            title: 'Количество операций по станциям'
-        }
-    };
-
-    return mockData[tableName] || mockData.equipment;
-}
-
-// Закрытие модальных окон при клике вне их
-window.onclick = function (event) {
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        if (event.target == modal) {
-            modal.style.display = 'none';
-        }
-    });
-};
+// Экспорт функций в глобальную область видимости
+window.logout = logout;
+window.loadStatistics = loadStatistics;
+window.exportChart = exportChart;
+window.toggleLegend = toggleLegend;
+window.changeChartTheme = changeChartTheme;
