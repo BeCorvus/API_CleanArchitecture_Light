@@ -36,16 +36,38 @@ async function checkAuth() {
     }
 
     if (userRole) {
-        document.getElementById('userRole').textContent = userRole;
+        // Отображаем реальную роль из localStorage (как есть из API)
+        document.getElementById('userRole').textContent = formatDisplayRole(userRole);
 
         // Скрываем кнопку статистики для не-админов
-        if (userRole !== 'Admin' && userRole !== 'admin') {
+        if (!apiService.isAdmin()) {
             const statsBtn = document.getElementById('statisticsBtn');
             if (statsBtn) {
                 statsBtn.style.display = 'none';
             }
         }
     }
+}
+
+// Форматирование роли для отображения
+function formatDisplayRole(role) {
+    if (!role) return 'User';
+
+    // Для ролей на русском - отображаем как есть
+    if (role.toLowerCase() === 'администратор') {
+        return 'Администратор';
+    } else if (role.toLowerCase() === 'пользователь') {
+        return 'Пользователь';
+    } else if (role.toLowerCase() === 'оператор') {
+        return 'Оператор';
+    } else if (role.toLowerCase() === 'менеджер') {
+        return 'Менеджер';
+    } else if (role.toLowerCase() === 'техник') {
+        return 'Техник';
+    }
+
+    // Для ролей на английском - делаем первую букву заглавной
+    return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
 
 // Настройка обработчиков событий

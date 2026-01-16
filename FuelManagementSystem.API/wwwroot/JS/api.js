@@ -19,7 +19,7 @@ class ApiService {
         this.userName = username;
         this.userRole = role;
         localStorage.setItem('userName', username);
-        localStorage.setItem('userRole', role);
+        localStorage.setItem('userRole', role); // Сохраняем как есть из API
     }
 
     // Очистка данных
@@ -155,9 +155,12 @@ class ApiService {
                 }
 
                 if (result.user) {
+                    // Сохраняем реальную роль из API без форматирования
+                    const userRole = result.user.role || 'User';
+
                     this.setUserInfo(
                         result.user.username || result.user.login || result.user.email,
-                        result.user.role || 'User'
+                        userRole // Сохраняем как есть
                     );
                 }
             }
@@ -200,9 +203,12 @@ class ApiService {
                 }
 
                 if (result.user) {
+                    // Сохраняем реальную роль из API без форматирования
+                    const userRole = result.user.role || 'User';
+
                     this.setUserInfo(
                         result.user.login || result.user.username || result.user.email,
-                        result.user.role || 'User'
+                        userRole // Сохраняем как есть
                     );
                 }
             }
@@ -216,7 +222,9 @@ class ApiService {
 
     // Проверка роли
     isAdmin() {
-        return this.userRole === 'Admin';
+        return this.userRole &&
+            (this.userRole.toLowerCase() === 'admin' ||
+                this.userRole.toLowerCase() === 'администратор');
     }
 }
 
