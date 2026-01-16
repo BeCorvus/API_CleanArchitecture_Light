@@ -147,6 +147,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // POST: api/user
+        [AllowAnonymous]
         [HttpPost]
         public async Task<ActionResult<UserDto>> CreateUser(CreateUserDto createDto)
         {
@@ -190,6 +191,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // PUT: api/user/{id}
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, UpdateUserDto updateDto)
         {
@@ -243,6 +245,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // PATCH: api/user/change-password/{id}
+        [Authorize]
         [HttpPatch("change-password/{id}")]
         public async Task<IActionResult> ChangePassword(int id, ChangePasswordDto changePasswordDto)
         {
@@ -274,6 +277,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // DELETE: api/user/{id} (Soft Delete)
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> SoftDeleteUser(int id)
         {
@@ -290,6 +294,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // PATCH: api/user/restore/{id}
+        [Authorize]
         [HttpPatch("restore/{id}")]
         public async Task<IActionResult> RestoreUser(int id)
         {
@@ -311,6 +316,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // GET: api/user/admin/{id}
+        [Authorize]
         [HttpGet("admin/{id}")]
         public async Task<ActionResult<UserAdminDto>> GetUserByIdForAdmin(int id)
         {
