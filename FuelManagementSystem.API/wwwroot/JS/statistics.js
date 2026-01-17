@@ -1,4 +1,4 @@
-﻿// Глобальные переменные для Chart.js
+﻿// statistics.js
 let currentChart = null;
 const chartColors = {
     light: {
@@ -18,63 +18,81 @@ const chartColors = {
     }
 };
 
-// Форматирование роли для отображения
 function formatDisplayRole(role) {
-    if (!role) return 'User';
-
-    // Для ролей на русском - отображаем как есть
-    if (role.toLowerCase() === 'администратор') {
-        return 'Администратор';
-    } else if (role.toLowerCase() === 'пользователь') {
+    if (!role) {
+        console.warn('⚠️ Роль пустая при форматировании');
         return 'Пользователь';
-    } else if (role.toLowerCase() === 'оператор') {
+    }
+
+    const roleLower = role.toString().toLowerCase().trim();
+
+    if (roleLower.includes('admin') || roleLower.includes('админ')) {
+        return 'Администратор';
+    } else if (roleLower.includes('user') || roleLower.includes('пользователь')) {
+        return 'Пользователь';
+    } else if (roleLower.includes('operator') || roleLower.includes('оператор')) {
         return 'Оператор';
-    } else if (role.toLowerCase() === 'менеджер') {
+    } else if (roleLower.includes('manager') || roleLower.includes('менеджер')) {
         return 'Менеджер';
-    } else if (role.toLowerCase() === 'техник') {
+    } else if (roleLower.includes('tech') || roleLower.includes('техник')) {
         return 'Техник';
     }
 
-    // Для ролей на английском - делаем первую букву заглавной
     return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
 
-// Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function () {
+    console.log('📊 Инициализация страницы статистики...');
     checkAuth();
     initChart();
 });
 
-// Проверка авторизации и прав
 async function checkAuth() {
+    console.log('🔐 Проверка авторизации для статистики...');
     const token = localStorage.getItem('authToken');
 
     if (!token) {
+        console.log('❌ Токен не найден, перенаправление на вход');
         window.location.href = 'login.html';
         return;
     }
 
-    // Обновляем информацию о пользователе
     const userName = localStorage.getItem('userName');
     const userRole = localStorage.getItem('userRole');
 
+    console.log('📋 Данные пользователя:');
+    console.log('👤 Имя:', userName);
+    console.log('🎭 Роль:', userRole);
+
     if (userName) {
-        document.getElementById('userName').textContent = userName;
+        const userNameElement = document.getElementById('userName');
+        if (userNameElement) {
+            userNameElement.textContent = userName;
+        }
     }
 
     if (userRole) {
-        // Отображаем реальную роль из localStorage (как есть из API)
-        document.getElementById('userRole').textContent = formatDisplayRole(userRole);
+        const userRoleElement = document.getElementById('userRole');
+        if (userRoleElement) {
+            userRoleElement.textContent = formatDisplayRole(userRole);
+        }
 
-        // Если пользователь не админ, перенаправляем на главную
+        // Проверяем права доступа
         if (!apiService.isAdmin()) {
+            console.log('❌ Доступ запрещен: пользователь не администратор');
             alert('Доступ к статистике только для администраторов');
             window.location.href = 'index.html';
+            return;
+        } else {
+            console.log('✅ Доступ разрешен: пользователь администратор');
         }
+    } else {
+        console.warn('⚠️ Роль пользователя не определена');
+        alert('Информация о роли пользователя не найдена');
+        window.location.href = 'index.html';
     }
 }
 
-// Выход из системы
 function logout() {
     if (confirm('Вы уверены, что хотите выйти?')) {
         apiService.clearData();
@@ -82,7 +100,6 @@ function logout() {
     }
 }
 
-// Инициализация диаграммы
 function initChart() {
     const ctx = document.getElementById('statisticsChart').getContext('2d');
 
@@ -102,10 +119,11 @@ function initChart() {
     };
 
     currentChart = new Chart(ctx, initialConfig);
+    console.log('📈 Диаграмма инициализирована');
 }
 
-// Загрузка статистики (автоматически при выборе таблицы)
 async function loadStatistics() {
+    console.log('📊 Загрузка статистики...');
     const tableSelect = document.getElementById('statTableSelect');
     const chartTypeSelect = document.getElementById('chartTypeSelect');
     const loading = document.getElementById('loading');
@@ -120,30 +138,22 @@ async function loadStatistics() {
     noData.style.display = 'none';
 
     try {
-        // Получаем данные для статистики
         const chartData = await fetchChartData(tableSelect.value, chartTypeSelect.value);
-
-        // Обновляем диаграмму
         updateChart(chartData, chartTypeSelect.value);
-
-        // Показываем статистические данные
         showChartStats(chartData);
     } catch (error) {
         console.error('Error loading statistics:', error);
-        noData.textContent = 'Ошибка загрузки статистики';
+        noData.textContent = 'Ошибка загрузки статистики: ' + error.message;
         noData.style.display = 'block';
     } finally {
         loading.classList.remove('active');
     }
 }
 
-// Получение данных для диаграммы
 async function fetchChartData(tableName, chartType) {
     try {
-        // Загружаем данные из таблицы
+        console.log(`📥 Загрузка данных для таблицы: ${tableName}`);
         const data = await apiService.request(`/${tableName}`);
-
-        // Преобразуем данные в формат для диаграммы
         return formatChartData(tableName, data, chartType);
     } catch (error) {
         console.error('Error fetching chart data:', error);
@@ -151,7 +161,6 @@ async function fetchChartData(tableName, chartType) {
     }
 }
 
-// Форматирование данных для диаграммы
 function formatChartData(tableName, data, chartType) {
     let chartData = {
         labels: [],
@@ -160,13 +169,14 @@ function formatChartData(tableName, data, chartType) {
     };
 
     if (!data || !Array.isArray(data) || data.length === 0) {
+        console.warn(`⚠️ Нет данных для таблицы ${tableName}`);
         return chartData;
     }
 
-    // Обработка данных в зависимости от таблицы
+    console.log(`📋 Обработка ${data.length} записей для таблицы ${tableName}`);
+
     switch (tableName) {
         case 'equipment':
-            // Статистика оборудования по брендам
             const brands = {};
             data.forEach(item => {
                 const brand = item.brand || 'Не указан';
@@ -177,7 +187,6 @@ function formatChartData(tableName, data, chartType) {
             break;
 
         case 'fuel':
-            // Статистика топлива по брендам и стоимости
             const fuelBrands = {};
             data.forEach(item => {
                 const brand = item.brand || 'Не указан';
@@ -188,7 +197,6 @@ function formatChartData(tableName, data, chartType) {
             break;
 
         case 'geyser':
-            // Статистика колонок по году выпуска
             const years = {};
             data.forEach(item => {
                 const year = item.yearOfRelease || 'Не указан';
@@ -199,7 +207,6 @@ function formatChartData(tableName, data, chartType) {
             break;
 
         case 'users':
-            // Статистика пользователей по ролям
             const userRoles = {};
             data.forEach(item => {
                 const role = item.role || item.IdRoles || 'Не указана';
@@ -210,7 +217,6 @@ function formatChartData(tableName, data, chartType) {
             break;
 
         case 'repair':
-            // Статистика ремонтов по стоимости (группировка)
             const costGroups = {
                 'До 5000 ₽': 0,
                 '5000-10000 ₽': 0,
@@ -231,21 +237,19 @@ function formatChartData(tableName, data, chartType) {
             break;
 
         case 'roles':
-            // Статистика ролей (просто количество)
             chartData.labels = data.map(role => role.name || 'Без названия');
-            chartData.data = data.map(role => 1); // Каждая роль = 1
+            chartData.data = data.map(role => 1);
             break;
 
         default:
-            // По умолчанию - количество записей
             chartData.labels = ['Записей в таблице'];
             chartData.data = [data.length];
     }
 
+    console.log(`✅ Сформированы данные для диаграммы: ${chartData.labels.length} элементов`);
     return chartData;
 }
 
-// Получение заголовка для диаграммы
 function getChartTitle(tableName) {
     const titles = {
         equipment: 'Статистика оборудования по брендам',
@@ -259,8 +263,8 @@ function getChartTitle(tableName) {
     return titles[tableName] || `Статистика таблицы ${tableName}`;
 }
 
-// Заглушки для диаграмм при отсутствии данных
 function getDefaultChartData(tableName) {
+    console.log(`📊 Используются данные по умолчанию для таблицы ${tableName}`);
     return {
         labels: ['Нет данных'],
         data: [0],
@@ -268,32 +272,30 @@ function getDefaultChartData(tableName) {
     };
 }
 
-// Обновление диаграммы
 function updateChart(chartData, chartType) {
-    if (!currentChart) return;
+    if (!currentChart) {
+        console.error('❌ Диаграмма не инициализирована');
+        return;
+    }
 
-    // Обновляем данные
+    console.log('🔄 Обновление диаграммы с данными:', chartData);
+
     currentChart.data.labels = chartData.labels;
     currentChart.data.datasets[0].label = chartData.title;
     currentChart.data.datasets[0].data = chartData.data;
 
-    // Обновляем цвета
     const colors = getChartColors(chartType, chartData.data.length);
     currentChart.data.datasets[0].backgroundColor = colors.background;
     currentChart.data.datasets[0].borderColor = colors.border;
     currentChart.data.datasets[0].borderWidth = 2;
 
-    // Обновляем тип диаграммы
     currentChart.config.type = chartType;
-
-    // Обновляем настройки
     currentChart.options = getChartOptions(chartType, 'light');
 
-    // Обновляем диаграмму
     currentChart.update();
+    console.log('✅ Диаграмма обновлена');
 }
 
-// Получение цветов для диаграммы
 function getChartColors(chartType, dataLength) {
     const colorPalette = [
         'rgba(54, 162, 235, 0.7)',
@@ -331,7 +333,6 @@ function getChartColors(chartType, dataLength) {
     }
 }
 
-// Получение настроек для диаграммы
 function getChartOptions(chartType, theme) {
     const themeColors = chartColors[theme] || chartColors.light;
 
@@ -401,7 +402,6 @@ function getChartOptions(chartType, theme) {
     }
 }
 
-// Показать статистические данные
 function showChartStats(chartData) {
     const statsContainer = document.getElementById('chartStats');
     if (!statsContainer) return;
@@ -432,7 +432,6 @@ function showChartStats(chartData) {
     `;
 }
 
-// Экспорт диаграммы
 function exportChart(format) {
     if (!currentChart) {
         alert('Сначала создайте диаграмму');
@@ -450,7 +449,6 @@ function exportChart(format) {
     link.click();
 }
 
-// Переключение отображения легенды
 function toggleLegend() {
     if (!currentChart) return;
 
@@ -459,22 +457,21 @@ function toggleLegend() {
     currentChart.update();
 }
 
-// Изменение темы диаграммы
 function changeChartTheme(theme) {
     if (!currentChart) return;
 
     const canvas = document.querySelector('.chart-wrapper');
     const themeColors = chartColors[theme] || chartColors.light;
 
-    // Обновляем фон
-    canvas.style.backgroundColor = themeColors.background;
+    if (canvas) {
+        canvas.style.backgroundColor = themeColors.background;
+    }
 
-    // Обновляем настройки диаграммы
     currentChart.options = getChartOptions(currentChart.config.type, theme);
     currentChart.update();
 }
 
-// Экспорт функций в глобальную область видимости
+// Экспорт функций
 window.logout = logout;
 window.loadStatistics = loadStatistics;
 window.exportChart = exportChart;

@@ -1,5 +1,4 @@
 ﻿// dashboard.js
-// Глобальные переменные
 let currentTable = '';
 let currentData = [];
 
@@ -11,83 +10,123 @@ document.addEventListener('DOMContentLoaded', function () {
     initDashboard();
 });
 
-// Инициализация дашборда
 function initDashboard() {
     console.log('✅ Дашборд инициализирован');
-    // Очищаем таблицу при инициализации
     clearTable();
 }
 
-// Проверка авторизации
 async function checkAuth() {
+    console.log('🔐 Проверка авторизации...');
     const token = localStorage.getItem('authToken');
 
     if (!token) {
+        console.log('❌ Токен не найден, перенаправление на страницу входа');
         window.location.href = 'login.html';
         return;
     }
 
-    // Обновляем информацию о пользователе
+    // Получаем данные пользователя
     const userName = localStorage.getItem('userName');
-    const userRole = localStorage.getItem('userRole');
+    let userRole = localStorage.getItem('userRole');
+
+    console.log('📋 Данные пользователя:');
+    console.log('👤 Имя:', userName);
+    console.log('🎭 Роль:', userRole);
+
+    // Проверяем данные для отладки
+    const userDebug = localStorage.getItem('userDebug');
+    if (userDebug) {
+        console.log('🔍 Отладочные данные пользователя:', JSON.parse(userDebug));
+    }
 
     if (userName) {
-        document.getElementById('userName').textContent = userName;
+        const userNameElement = document.getElementById('userName');
+        if (userNameElement) {
+            userNameElement.textContent = userName;
+            console.log('✅ Имя пользователя установлено:', userName);
+        }
     }
 
     if (userRole) {
-        // Отображаем реальную роль из localStorage (как есть из API)
-        document.getElementById('userRole').textContent = formatDisplayRole(userRole);
-
-        // Скрываем кнопку статистики для не-админов
-        if (!apiService.isAdmin()) {
-            const statsBtn = document.getElementById('statisticsBtn');
-            if (statsBtn) {
-                statsBtn.style.display = 'none';
-            }
+        const userRoleElement = document.getElementById('userRole');
+        if (userRoleElement) {
+            userRoleElement.textContent = formatDisplayRole(userRole);
+            console.log('✅ Роль пользователя установлена:', userRole);
         }
+
+        // Управление видимостью кнопки статистики
+        manageStatisticsButton();
+    } else {
+        console.warn('⚠️ Роль пользователя не найдена в localStorage');
     }
 }
 
-// Форматирование роли для отображения
 function formatDisplayRole(role) {
-    if (!role) return 'User';
-
-    // Для ролей на русском - отображаем как есть
-    if (role.toLowerCase() === 'администратор') {
-        return 'Администратор';
-    } else if (role.toLowerCase() === 'пользователь') {
+    if (!role) {
+        console.warn('⚠️ Роль пустая при форматировании');
         return 'Пользователь';
-    } else if (role.toLowerCase() === 'оператор') {
+    }
+
+    console.log('🎨 Форматирование роли:', role);
+    const roleLower = role.toString().toLowerCase().trim();
+
+    if (roleLower.includes('admin') || roleLower.includes('админ')) {
+        return 'Администратор';
+    } else if (roleLower.includes('user') || roleLower.includes('пользователь')) {
+        return 'Пользователь';
+    } else if (roleLower.includes('operator') || roleLower.includes('оператор')) {
         return 'Оператор';
-    } else if (role.toLowerCase() === 'менеджер') {
+    } else if (roleLower.includes('manager') || roleLower.includes('менеджер')) {
         return 'Менеджер';
-    } else if (role.toLowerCase() === 'техник') {
+    } else if (roleLower.includes('tech') || roleLower.includes('техник')) {
         return 'Техник';
     }
 
-    // Для ролей на английском - делаем первую букву заглавной
+    // Для неизвестных ролей - первая буква заглавная
     return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
 
-// Настройка обработчиков событий
+function manageStatisticsButton() {
+    const statsBtn = document.getElementById('statisticsBtn');
+    if (!statsBtn) {
+        console.error('❌ Кнопка статистики не найдена в DOM');
+        return;
+    }
+
+    const isAdmin = apiService.isAdmin();
+    console.log('📊 Управление кнопкой статистики:');
+    console.log('👑 Пользователь администратор?:', isAdmin);
+    console.log('🎯 Текущий стиль кнопки:', statsBtn.style.display);
+
+    if (isAdmin) {
+        statsBtn.style.display = 'block'; // или 'inline-block' в зависимости от CSS
+        console.log('✅ Кнопка статистики показана');
+    } else {
+        statsBtn.style.display = 'none';
+        console.log('❌ Кнопка статистики скрыта');
+    }
+}
+
 function setupEventListeners() {
-    // Кнопка выхода
     const logoutBtn = document.querySelector('.logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', logout);
     }
 
-    // Закрытие модального окна
     window.addEventListener('click', function (event) {
         const modal = document.getElementById('detailsModal');
         if (event.target == modal) {
             closeModal();
         }
     });
+
+    // Обработчик для кнопки статистики
+    const statsBtn = document.getElementById('statisticsBtn');
+    if (statsBtn) {
+        statsBtn.addEventListener('click', showStatisticsPage);
+    }
 }
 
-// Выход из системы
 function logout() {
     if (confirm('Вы уверены, что хотите выйти?')) {
         apiService.clearData();
@@ -95,12 +134,11 @@ function logout() {
     }
 }
 
-// Переход на страницу статистики
 function showStatisticsPage() {
+    console.log('📊 Переход на страницу статистики');
     window.location.href = 'statistics.html';
 }
 
-// Обработка выбора таблицы
 function onTableSelect() {
     const tableSelect = document.getElementById('tableSelect');
     const generateBtn = document.getElementById('generateBtn');
@@ -108,17 +146,14 @@ function onTableSelect() {
     if (tableSelect.value) {
         generateBtn.disabled = false;
         currentTable = tableSelect.value;
-        // АВТОМАТИЧЕСКАЯ ЗАГРУЗКА ДАННЫХ ПРИ ВЫБОРЕ ТАБЛИЦЫ
         generateData();
     } else {
         generateBtn.disabled = true;
         currentTable = '';
-        // Очищаем таблицу при сбросе выбора
         clearTable();
     }
 }
 
-// Обновление данных (синоним для generateData)
 function refreshData() {
     if (currentTable) {
         generateData();
@@ -127,7 +162,6 @@ function refreshData() {
     }
 }
 
-// Загрузка данных (вызывается автоматически при выборе и по кнопке)
 async function generateData() {
     if (!currentTable) {
         showNotification('Выберите таблицу', 'error');
@@ -138,23 +172,19 @@ async function generateData() {
     const noData = document.getElementById('noData');
     const tableContainer = document.getElementById('dataTableContainer');
 
-    // Показываем загрузку
     loading.classList.add('active');
     noData.style.display = 'none';
     tableContainer.style.display = 'none';
 
     try {
-        // Получаем данные
         currentData = await fetchTableData(currentTable);
 
-        // Проверяем данные
         if (!currentData || currentData.length === 0) {
             noData.textContent = 'В таблице нет данных';
             noData.style.display = 'block';
             tableContainer.style.display = 'none';
             showNotification('Данные не найдены', 'info');
         } else {
-            // Отображаем данные
             displayTableData(currentData);
             tableContainer.style.display = 'block';
             showNotification(`Загружено записей: ${currentData.length}`, 'success');
@@ -169,17 +199,15 @@ async function generateData() {
     }
 }
 
-// Получение данных таблицы
 async function fetchTableData(tableName) {
     try {
-        // Определяем эндпоинты
         const endpoints = {
             equipment: '/equipment',
             fuel: '/fuel',
             geyser: '/geyser',
             users: '/user',
             repair: '/repair',
-            roles: '/role'
+            roles: '/roles'
         };
 
         const endpoint = endpoints[tableName];
@@ -189,16 +217,12 @@ async function fetchTableData(tableName) {
         }
 
         console.log(`Запрос к: ${endpoint}`);
-
-        // Используем apiService для запроса
         const response = await apiService.request(endpoint);
 
-        // Проверяем ответ
         if (!response) {
             throw new Error('Сервер не вернул данные');
         }
 
-        // Если ответ не массив, преобразуем его
         let data = response;
         if (!Array.isArray(response)) {
             data = convertToArray(response);
@@ -212,16 +236,12 @@ async function fetchTableData(tableName) {
     }
 }
 
-// Преобразование ответа в массив
 function convertToArray(response) {
-    // Если ответ уже массив
     if (Array.isArray(response)) {
         return response;
     }
 
-    // Если ответ - объект, проверяем, не содержит ли он массив
     if (response && typeof response === 'object') {
-        // Ищем массив в стандартных свойствах
         const arrayProperties = ['data', 'items', 'results', 'records'];
         for (const prop of arrayProperties) {
             if (response[prop] && Array.isArray(response[prop])) {
@@ -229,7 +249,6 @@ function convertToArray(response) {
             }
         }
 
-        // Если объект содержит ID, оборачиваем в массив
         const idFields = ['id', 'Id', 'IdUsers', 'IdEquipment', 'IdFuel', 'IdGeyser', 'IdRepair', 'IdRoles'];
         for (const field of idFields) {
             if (response[field] !== undefined) {
@@ -238,16 +257,13 @@ function convertToArray(response) {
         }
     }
 
-    // В остальных случаях - пустой массив
     return [];
 }
 
-// Отображение данных в таблице
 function displayTableData(data) {
     const tableHeader = document.getElementById('tableHeader');
     const tableBody = document.getElementById('tableBody');
 
-    // Очищаем таблицу
     tableHeader.innerHTML = '';
     tableBody.innerHTML = '';
 
@@ -255,11 +271,9 @@ function displayTableData(data) {
         return;
     }
 
-    // Создаем заголовки
     const firstItem = data[0];
     const headers = Object.keys(firstItem);
 
-    // Исключаем технические поля
     const excludedFields = ['dateOfRecording', 'dateOfChange', 'whoRecorded',
         'whoChanged', 'whenDeleted', 'passwordHash',
         'resetToken', 'resetTokenExpiry'];
@@ -275,29 +289,23 @@ function displayTableData(data) {
         headerRow.appendChild(th);
     });
 
-    // Добавляем столбец действий
     const actionsTh = document.createElement('th');
     actionsTh.textContent = 'Действия';
     headerRow.appendChild(actionsTh);
 
     tableHeader.appendChild(headerRow);
 
-    // Заполняем таблицу
     data.forEach((row) => {
         const tableRow = document.createElement('tr');
 
         displayHeaders.forEach(header => {
             const td = document.createElement('td');
             let value = row[header];
-
-            // Форматируем значение
             value = formatValue(value);
-
             td.textContent = value;
             tableRow.appendChild(td);
         });
 
-        // Добавляем кнопки действий
         const actionsTd = document.createElement('td');
         actionsTd.className = 'actions-cell';
 
@@ -313,7 +321,6 @@ function displayTableData(data) {
     });
 }
 
-// Форматирование значения
 function formatValue(value) {
     if (value === null || value === undefined) {
         return '-';
@@ -324,7 +331,6 @@ function formatValue(value) {
     }
 
     if (typeof value === 'number') {
-        // Форматируем валюту
         if (value.toString().includes('.') || value.toString().includes(',')) {
             return value.toFixed(2).replace('.', ',') + ' ₽';
         }
@@ -332,7 +338,6 @@ function formatValue(value) {
     }
 
     if (typeof value === 'string') {
-        // Проверяем, является ли строка датой
         const dateRegex = /^\d{4}-\d{2}-\d{2}/;
         if (dateRegex.test(value)) {
             try {
@@ -350,7 +355,6 @@ function formatValue(value) {
     return String(value);
 }
 
-// Форматирование заголовка
 function formatHeader(header) {
     const translations = {
         'id': 'ID',
@@ -400,14 +404,12 @@ function formatHeader(header) {
         return translations[lowerHeader];
     }
 
-    // Форматируем camelCase
     const words = header.replace(/([A-Z])/g, ' $1').trim().split(' ');
     return words.map(word =>
         word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
 }
 
-// Просмотр деталей
 function viewDetails(data, displayHeaders = null) {
     const modal = document.getElementById('detailsModal');
     const modalContent = document.getElementById('modalContent');
@@ -435,12 +437,10 @@ function viewDetails(data, displayHeaders = null) {
     modal.style.display = 'flex';
 }
 
-// Закрытие модального окна
 function closeModal() {
     document.getElementById('detailsModal').style.display = 'none';
 }
 
-// Очистка таблицы
 function clearTable() {
     const tableHeader = document.getElementById('tableHeader');
     const tableBody = document.getElementById('tableBody');
@@ -453,14 +453,11 @@ function clearTable() {
     noData.style.display = 'block';
 }
 
-// Показ уведомления
 function showNotification(message, type = 'info') {
-    // Создаем элемент уведомления
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
 
-    // Стили
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -479,7 +476,6 @@ function showNotification(message, type = 'info') {
 
     document.body.appendChild(notification);
 
-    // Автоматическое скрытие
     setTimeout(() => {
         notification.remove();
     }, 5000);

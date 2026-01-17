@@ -1,28 +1,37 @@
 ﻿// api.js
-const API_BASE_URL = 'http://localhost:5077/api'; // Замените на ваш URL
+const API_BASE_URL = 'http://localhost:5077/api';
 
 class ApiService {
     constructor() {
         this.token = localStorage.getItem('authToken');
         this.userRole = localStorage.getItem('userRole');
         this.userName = localStorage.getItem('userName');
+        console.log('🔧 ApiService инициализирован');
+        console.log('📋 Текущая роль:', this.userRole);
+        console.log('👤 Текущий пользователь:', this.userName);
     }
 
-    // Установка токена
     setToken(token) {
         this.token = token;
         localStorage.setItem('authToken', token);
+        console.log('🔑 Токен установлен');
     }
 
-    // Установка информации о пользователе
     setUserInfo(username, role) {
+        console.log('💾 Сохраняем данные пользователя:');
+        console.log('👤 Имя:', username);
+        console.log('🎭 Роль:', role);
+
         this.userName = username;
         this.userRole = role;
         localStorage.setItem('userName', username);
-        localStorage.setItem('userRole', role); // Сохраняем как есть из API
+        localStorage.setItem('userRole', role);
+
+        // Для отладки
+        console.log('✅ Данные сохранены в localStorage');
+        console.log('📋 Проверка localStorage - роль:', localStorage.getItem('userRole'));
     }
 
-    // Очистка данных
     clearData() {
         this.token = null;
         this.userRole = null;
@@ -30,24 +39,19 @@ class ApiService {
         localStorage.removeItem('authToken');
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
+        localStorage.removeItem('userDebug');
+        console.log('🧹 Данные пользователя очищены');
     }
 
-    // Базовый метод для запросов
     async request(endpoint, options = {}) {
+        console.log('📤 Запрос к:', endpoint);
         const url = `${API_BASE_URL}${endpoint}`;
-
-        console.log('📤 Отправка запроса:', {
-            url: url,
-            method: options.method || 'GET',
-            endpoint: endpoint
-        });
 
         const headers = {
             'Content-Type': 'application/json',
             ...options.headers
         };
 
-        // Добавляем токен, если есть
         if (this.token) {
             headers['Authorization'] = `Bearer ${this.token}`;
         }
@@ -59,48 +63,34 @@ class ApiService {
 
         if (options.body && typeof options.body === 'object') {
             config.body = JSON.stringify(options.body);
-            console.log('📦 Тело запроса:', config.body);
         }
 
         try {
+            console.log('🔄 Выполняем запрос к:', url);
             const response = await fetch(url, config);
 
-            console.log('📥 Ответ сервера:', {
-                status: response.status,
-                statusText: response.statusText,
-                url: response.url
-            });
-
-            // Обработка ошибок авторизации
             if (response.status === 401) {
                 this.clearData();
                 window.location.href = 'login.html';
                 throw new Error('Требуется авторизация');
             }
 
-            // Получаем данные ответа
             let responseData;
             const contentType = response.headers.get('content-type');
-
             if (contentType && contentType.includes('application/json')) {
                 responseData = await response.json();
             } else {
                 responseData = await response.text();
             }
 
-            // Если статус не успешный (не 2xx), выбрасываем ошибку
             if (!response.ok) {
                 console.error('❌ Ошибка сервера:', responseData);
-
-                // Создаем объект ошибки с данными от сервера
                 const error = new Error(`HTTP error! status: ${response.status}`);
                 error.status = response.status;
                 error.data = responseData;
 
-                // Добавляем сообщение об ошибке из ответа сервера
                 if (responseData && typeof responseData === 'object') {
                     error.message = responseData.message || error.message;
-                    // Если есть валидационные ошибки
                     if (responseData.errors) {
                         const validationErrors = [];
                         Object.entries(responseData.errors).forEach(([field, errors]) => {
@@ -109,76 +99,67 @@ class ApiService {
                         error.message = validationErrors.join('; ');
                     }
                 }
-
                 throw error;
             }
 
-            console.log('✅ Успешный ответ:', responseData);
+            console.log('✅ Ответ получен:', responseData);
             return responseData;
 
         } catch (error) {
             console.error('❌ Ошибка запроса:', error);
-
-            // Добавляем пользователю понятное сообщение
             if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-                error.message = 'Не удалось подключиться к серверу. Проверьте подключение к интернету и адрес сервера.';
+                error.message = 'Не удалось подключиться к серверу. Проверьте подключение.';
             }
-
             throw error;
         }
     }
 
-    // Вход в систему
     async login(credentials) {
-        console.log('🔐 Вход с данными:', credentials);
+        console.log('🔐 Попытка входа с данными:', credentials);
         try {
-            // Преобразуем данные в формат, который ожидает сервер
-            // Сервер, скорее всего, ожидает login или email
             const loginData = {
                 login: credentials.login || credentials.username || credentials.email,
                 password: credentials.password
             };
 
-            console.log('📤 Отправка данных для входа:', loginData);
-
+            console.log('📤 Отправка данных на сервер:', loginData);
             const result = await this.request('/auth/login', {
                 method: 'POST',
                 body: loginData
             });
 
-            console.log('🔑 Результат входа:', result);
+            console.log('🔑 Ответ от сервера:', result);
 
-            // Обработка успешного ответа
             if (result) {
                 if (result.token) {
                     this.setToken(result.token);
                 }
 
                 if (result.user) {
-                    // Сохраняем реальную роль из API без форматирования
-                    const userRole = result.user.role || 'User';
+                    // Ищем роль во всех возможных полях
+                    const userRole = this.findUserRole(result.user);
+                    console.log('🎭 Найдена роль пользователя:', userRole);
 
                     this.setUserInfo(
-                        result.user.username || result.user.login || result.user.email,
-                        userRole // Сохраняем как есть
+                        result.user.username || result.user.login || result.user.email || 'Пользователь',
+                        userRole
                     );
+
+                    // Сохраняем полные данные для отладки
+                    localStorage.setItem('userDebug', JSON.stringify(result.user));
                 }
             }
 
             return result;
         } catch (error) {
-            console.error('Ошибка входа:', error);
+            console.error('❌ Ошибка входа:', error);
             throw error;
         }
     }
 
-    // Регистрация пользователя
     async register(userData) {
-        console.log('📝 Регистрация с данными:', userData);
+        console.log('📝 Регистрация пользователя:', userData);
         try {
-            // Преобразуем данные в формат, который ожидает сервер
-            // Согласно Swagger, сервер ожидает:
-            // email, login, password, confirmPassword, note
             const registerData = {
                 email: userData.email || '',
                 login: userData.login || userData.username || '',
@@ -187,28 +168,21 @@ class ApiService {
                 note: userData.note || ''
             };
 
-            console.log('📤 Отправка данных для регистрации:', registerData);
-
             const result = await this.request('/auth/register', {
                 method: 'POST',
                 body: registerData
             });
 
-            console.log('✅ Результат регистрации:', result);
-
-            // Обработка успешного ответа
             if (result) {
                 if (result.token) {
                     this.setToken(result.token);
                 }
 
                 if (result.user) {
-                    // Сохраняем реальную роль из API без форматирования
-                    const userRole = result.user.role || 'User';
-
+                    const userRole = this.findUserRole(result.user);
                     this.setUserInfo(
                         result.user.login || result.user.username || result.user.email,
-                        userRole // Сохраняем как есть
+                        userRole
                     );
                 }
             }
@@ -220,13 +194,74 @@ class ApiService {
         }
     }
 
-    // Проверка роли
+    findUserRole(userData) {
+        // Ищем роль в разных возможных полях
+        const possibleRoleFields = [
+            'role',
+            'Role',
+            'userRole',
+            'userrole',
+            'NameRole',
+            'nameRole',
+            'namerole',
+            'roles',
+            'rolename'
+        ];
+
+        for (const field of possibleRoleFields) {
+            if (userData[field] !== undefined && userData[field] !== null) {
+                console.log(`✅ Роль найдена в поле "${field}":`, userData[field]);
+                return userData[field];
+            }
+        }
+
+        console.warn('⚠️ Роль не найдена в данных пользователя, используется значение по умолчанию "User"');
+        return 'User';
+    }
+
     isAdmin() {
-        return this.userRole &&
-            (this.userRole.toLowerCase() === 'admin' ||
-                this.userRole.toLowerCase() === 'администратор');
+        const role = this.userRole || localStorage.getItem('userRole');
+        console.log('🔐 Проверка прав администратора для роли:', role);
+
+        if (!role) {
+            console.log('❌ Роль не определена');
+            return false;
+        }
+
+        const roleLower = role.toString().toLowerCase().trim();
+        console.log('🔐 Приведенная роль:', roleLower);
+
+        const isAdmin = roleLower === 'admin' ||
+            roleLower === 'администратор' ||
+            roleLower === 'админ' ||
+            roleLower.includes('admin') ||
+            roleLower.includes('админ') ||
+            roleLower === 'administrator';
+
+        console.log('🔐 Результат проверки isAdmin:', isAdmin);
+        return isAdmin;
+    }
+
+    // Метод для тестирования подключения
+    async testConnection() {
+        console.log('🔍 Тестируем подключение к API...');
+        const testUrls = [
+            'http://localhost:5077/',
+            'http://localhost:5077/api',
+            'http://localhost:5077/swagger',
+            'http://localhost:5077/api/auth',
+            'http://localhost:5077/api/user'
+        ];
+
+        for (const url of testUrls) {
+            try {
+                const response = await fetch(url);
+                console.log(`✅ ${url} - ${response.status} ${response.statusText}`);
+            } catch (error) {
+                console.log(`❌ ${url} - ${error.message}`);
+            }
+        }
     }
 }
 
-// Создаем глобальный экземпляр
 window.apiService = new ApiService();
