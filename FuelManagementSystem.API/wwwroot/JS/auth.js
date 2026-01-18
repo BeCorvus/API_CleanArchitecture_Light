@@ -27,7 +27,9 @@ function showTab(tabName) {
 
     // Очищаем поля форм при переключении вкладок
     document.querySelectorAll('.auth-form input, .auth-form textarea').forEach(field => {
-        field.value = '';
+        if (!field.getAttribute('data-keep')) {
+            field.value = '';
+        }
     });
 
     // Сбрасываем индикатор сложности пароля
@@ -57,6 +59,8 @@ function checkPasswordStrength() {
     const password = document.getElementById('regPassword').value;
     const strengthBar = document.getElementById('strengthBar');
 
+    if (!strengthBar) return;
+
     let strength = 0;
 
     if (password.length >= 8) strength++;
@@ -82,10 +86,46 @@ function showMessage(text, type) {
         messageEl.className = `message ${type}`;
         messageEl.style.display = 'block';
 
+        // Автоматически скрываем через 5 секунд
         setTimeout(() => {
             hideMessage();
         }, 5000);
     }
+
+    // Также показываем уведомление
+    showNotification(text, type);
+}
+
+// Показать уведомление
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${type === 'error' ? '#f8d7da' : type === 'success' ? '#d4edda' : type === 'warning' ? '#fff3cd' : '#d1ecf1'};
+        color: ${type === 'error' ? '#721c24' : type === 'success' ? '#155724' : type === 'warning' ? '#856404' : '#0c5460'};
+        border: 1px solid ${type === 'error' ? '#f5c6cb' : type === 'success' ? '#c3e6cb' : type === 'warning' ? '#ffeaa7' : '#bee5eb'};
+        border-radius: 8px;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        max-width: 400px;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 14px;
+        animation: slideIn 0.3s ease;
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
 }
 
 function hideMessage() {
@@ -95,9 +135,31 @@ function hideMessage() {
     }
 }
 
+// Проверка, авторизован ли пользователь
+function checkAuth() {
+    const token = localStorage.getItem('authToken');
+    const currentPage = window.location.pathname;
+
+    // Если на странице авторизации и уже есть токен - перенаправляем
+    if (currentPage.includes('login.html') && token) {
+        console.log('✅ Пользователь уже авторизован, перенаправление на главную');
+        window.location.href = 'index.html';
+    }
+
+    // Если на главной и нет токена - перенаправляем на логин
+    if ((currentPage.includes('index.html') || currentPage.includes('statistics.html')) && !token) {
+        console.log('❌ Пользователь не авторизован, перенаправление на логин');
+        window.location.href = 'login.html';
+    }
+}
+
 // Обработка формы входа
 document.addEventListener('DOMContentLoaded', function () {
     console.log('🚀 Запуск системы авторизации...');
+    console.log('🔍 Проверка авторизации...');
+
+    // Проверяем авторизацию
+    checkAuth();
 
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
@@ -125,7 +187,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 const credentials = {
                     login: isEmail ? null : loginInput,
                     email: isEmail ? loginInput : null,
-                    username: isEmail ? null : loginInput,
                     password: password
                 };
 
@@ -138,21 +199,48 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 console.log('📤 Отправка данных для входа:', credentials);
 
+                // Используем apiService для входа
                 const result = await apiService.login(credentials);
 
-                if (result && (result.token || result.success)) {
-                    showMessage('Вход выполнен успешно!', 'success');
+                console.log('✅ Результат входа:', result);
 
-                    // Перенаправление на главную страницу
+                if (result && (result.token || result.success)) {
+                    // Проверяем, сохранилась ли роль
+                    const savedRole = localStorage.getItem('userRole');
+                    const savedName = localStorage.getItem('userName');
+
+                    console.log('💾 Проверка сохраненных данных:');
+                    console.log('👤 Имя:', savedName);
+                    console.log('🎭 Роль:', savedRole);
+                    console.log('🔐 Токен:', localStorage.getItem('authToken'));
+
+                    if (result.user) {
+                        // Сохраняем отладочные данные
+                        localStorage.setItem('userDebug', JSON.stringify(result.user));
+                        console.log('🔍 Отладочные данные сохранены:', result.user);
+                    }
+
+                    showMessage('Вход выполнен успешно! Перенаправление...', 'success');
+
+                    // Даем время для сохранения данных и показа сообщения
                     setTimeout(() => {
+                        console.log('🔄 Перенаправление на главную страницу...');
                         window.location.href = 'index.html';
-                    }, 1000);
+                    }, 1500);
                 } else {
                     showMessage(result?.message || 'Ошибка входа', 'error');
                 }
             } catch (error) {
-                console.error('Login error:', error);
-                showMessage(error.message || 'Ошибка при входе в систему', 'error');
+                console.error('❌ Ошибка входа:', error);
+
+                let errorMessage = 'Ошибка при входе в систему';
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Не удалось подключиться к серверу. Проверьте подключение к интернету.';
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+
+                showMessage(errorMessage, 'error');
             } finally {
                 // Восстанавливаем кнопку
                 submitBtn.textContent = originalText;
@@ -201,10 +289,10 @@ document.addEventListener('DOMContentLoaded', function () {
             submitBtn.disabled = true;
 
             try {
-                // Формируем данные для регистрации в формате, который ожидает сервер
+                // Формируем данные для регистрации
                 const userData = {
                     email: email,
-                    login: username, // Поле login должно совпадать с тем, что в Swagger
+                    login: username,
                     password: password,
                     confirmPassword: confirmPassword,
                     note: note || ''
@@ -212,33 +300,53 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 console.log('📤 Отправка данных для регистрации:', userData);
 
+                // Используем apiService для регистрации
                 const result = await apiService.register(userData);
 
-                if (result && (result.token || result.success)) {
-                    showMessage('Регистрация прошла успешно!', 'success');
+                console.log('✅ Результат регистрации:', result);
 
-                    // Перенаправление на главную страницу
+                if (result && (result.token || result.success)) {
+                    // Проверяем, сохранилась ли роль
+                    const savedRole = localStorage.getItem('userRole');
+                    const savedName = localStorage.getItem('userName');
+
+                    console.log('💾 Проверка сохраненных данных:');
+                    console.log('👤 Имя:', savedName);
+                    console.log('🎭 Роль:', savedRole);
+
+                    if (result.user) {
+                        // Сохраняем отладочные данные
+                        localStorage.setItem('userDebug', JSON.stringify(result.user));
+                        console.log('🔍 Отладочные данные сохранены:', result.user);
+                    }
+
+                    showMessage('Регистрация прошла успешно! Перенаправление...', 'success');
+
+                    // Даем время для сохранения данных и показа сообщения
                     setTimeout(() => {
+                        console.log('🔄 Перенаправление на главную страницу...');
                         window.location.href = 'index.html';
-                    }, 1000);
+                    }, 1500);
                 } else {
                     showMessage(result?.message || 'Ошибка регистрации', 'error');
                 }
             } catch (error) {
-                console.error('Registration error:', error);
-                showMessage(error.message || 'Ошибка при регистрации', 'error');
+                console.error('❌ Ошибка регистрации:', error);
+
+                let errorMessage = 'Ошибка при регистрации';
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Не удалось подключиться к серверу. Проверьте подключение к интернету.';
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+
+                showMessage(errorMessage, 'error');
             } finally {
                 // Восстанавливаем кнопку
                 submitBtn.textContent = originalText;
                 submitBtn.disabled = false;
             }
         });
-    }
-
-    // Проверка, если пользователь уже авторизован
-    const token = localStorage.getItem('authToken');
-    if (token && window.location.pathname.includes('login.html')) {
-        window.location.href = 'index.html';
     }
 
     // Инициализация табов
@@ -249,4 +357,26 @@ document.addEventListener('DOMContentLoaded', function () {
             showTab(tabName);
         });
     });
+
+    // Инициализация переключения пароля
+    document.querySelectorAll('.toggle-password').forEach(icon => {
+        const onclickAttr = icon.getAttribute('onclick');
+        if (onclickAttr) {
+            const inputId = onclickAttr.match(/'([^']+)'/)[1];
+            icon.addEventListener('click', () => togglePassword(inputId));
+        }
+    });
+
+    // Инициализация проверки сложности пароля
+    const regPasswordInput = document.getElementById('regPassword');
+    if (regPasswordInput) {
+        regPasswordInput.addEventListener('input', checkPasswordStrength);
+    }
+
+    console.log('✅ Авторизация инициализирована');
 });
+
+// Экспорт функций для использования в HTML
+window.showTab = showTab;
+window.togglePassword = togglePassword;
+window.checkPasswordStrength = checkPasswordStrength;

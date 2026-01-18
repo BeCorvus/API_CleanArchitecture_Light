@@ -197,6 +197,7 @@ class ApiService {
     findUserRole(userData) {
         // Ищем роль в разных возможных полях
         const possibleRoleFields = [
+            'ID_Roles',
             'role',
             'Role',
             'userRole',
@@ -232,6 +233,7 @@ class ApiService {
         console.log('🔐 Приведенная роль:', roleLower);
 
         const isAdmin = roleLower === 'admin' ||
+            roleLower === '0' ||
             roleLower === 'администратор' ||
             roleLower === 'админ' ||
             roleLower.includes('admin') ||
