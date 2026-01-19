@@ -136,17 +136,14 @@ class ApiService {
                 }
 
                 if (result.user) {
-                    // Ищем роль во всех возможных полях
-                    const userRole = this.findUserRole(result.user);
-                    console.log('🎭 Найдена роль пользователя:', userRole);
+                    // ✅ Теперь роль приходит с сервера в поле user.role
+                    const userRole = result.user.role || 'user';
+                    console.log('🎭 Роль пользователя получена с сервера:', userRole);
 
                     this.setUserInfo(
                         result.user.username || result.user.login || result.user.email || 'Пользователь',
                         userRole
                     );
-
-                    // Сохраняем полные данные для отладки
-                    localStorage.setItem('userDebug', JSON.stringify(result.user));
                 }
             }
 
@@ -195,8 +192,13 @@ class ApiService {
     }
 
     findUserRole(userData) {
-        // Ищем роль в разных возможных полях
+        console.log('🔍 Ищем роль в данных пользователя:', userData);
+        console.log('🔍 Ключи в данных:', Object.keys(userData));
+
+        // Теперь ищем поле 'Role' с заглавной буквы (из UserDto.Role)
         const possibleRoleFields = [
+            'Role',       // ✅ Новое поле из UserDto
+            'role',       // на всякий случай
             'ID_Roles',
             'role',
             'Role',
@@ -214,6 +216,12 @@ class ApiService {
                 console.log(`✅ Роль найдена в поле "${field}":`, userData[field]);
                 return userData[field];
             }
+        }
+
+        // ✅ Проверяем, есть ли вложенные объекты с ролью
+        if (userData.user && userData.user.Role) {
+            console.log('✅ Роль найдена в user.Role:', userData.user.Role);
+            return userData.user.Role;
         }
 
         console.warn('⚠️ Роль не найдена в данных пользователя, используется значение по умолчанию "User"');

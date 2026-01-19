@@ -119,12 +119,14 @@ namespace FuelManagementSystem.API.Controllers
                 // Генерация токена с ролью
                 var token = _jwtService.GenerateToken(user, roleName);
 
+                // ✅ ОБНОВЛЕНО: Добавлено поле Role в UserDto
                 var userDto = new UserDto
                 {
                     Id = user.IdUsers,
                     Email = user.Email,
                     Login = user.Login,
-                    Note = user.Note
+                    Note = user.Note,
+                    Role = roleName // ✅ ДОБАВЛЕНО
                 };
 
                 var response = new AuthResponseDto
@@ -198,12 +200,14 @@ namespace FuelManagementSystem.API.Controllers
                 // Генерация токена с ролью
                 var token = _jwtService.GenerateToken(user, roleName);
 
+                // ✅ ОБНОВЛЕНО: Добавлено поле Role в UserDto
                 var userDto = new UserDto
                 {
                     Id = user.IdUsers,
                     Email = user.Email,
                     Login = user.Login,
-                    Note = user.Note
+                    Note = user.Note,
+                    Role = roleName // ✅ ДОБАВЛЕНО
                 };
 
                 var response = new AuthResponseDto

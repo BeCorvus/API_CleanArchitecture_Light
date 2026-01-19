@@ -36,13 +36,20 @@ namespace FuelManagementSystem.API.Controllers
         {
             var users = await _userRepository.GetAllActiveAsync();
 
-            var userDtos = users.Select(u => new UserDto
+            var userDtos = new List<UserDto>();
+            foreach (var user in users)
             {
-                Id = u.IdUsers,
-                Email = u.Email,
-                Login = u.Login,
-                Note = u.Note
-            });
+                var roleName = await _userRoleService.GetUserRoleNameAsync(user.IdUsers);
+
+                userDtos.Add(new UserDto
+                {
+                    Id = user.IdUsers,
+                    Email = user.Email,
+                    Login = user.Login,
+                    Note = user.Note,
+                    Role = roleName // ✅ ДОБАВЛЕНО ПОЛЕ РОЛИ
+                });
+            }
 
             return Ok(userDtos);
         }
@@ -59,12 +66,15 @@ namespace FuelManagementSystem.API.Controllers
                 return NotFound();
             }
 
+            var roleName = await _userRoleService.GetUserRoleNameAsync(id);
+
             var userDto = new UserDto
             {
                 Id = user.IdUsers,
                 Email = user.Email,
                 Login = user.Login,
-                Note = user.Note
+                Note = user.Note,
+                Role = roleName // ✅ ДОБАВЛЕНО ПОЛЕ РОЛИ
             };
 
             return Ok(userDto);
@@ -82,12 +92,15 @@ namespace FuelManagementSystem.API.Controllers
                 return NotFound();
             }
 
+            var roleName = await _userRoleService.GetUserRoleNameAsync(user.IdUsers);
+
             var userDto = new UserDto
             {
                 Id = user.IdUsers,
                 Email = user.Email,
                 Login = user.Login,
-                Note = user.Note
+                Note = user.Note,
+                Role = roleName // ✅ ДОБАВЛЕНО ПОЛЕ РОЛИ
             };
 
             return Ok(userDto);
@@ -105,12 +118,15 @@ namespace FuelManagementSystem.API.Controllers
                 return NotFound();
             }
 
+            var roleName = await _userRoleService.GetUserRoleNameAsync(user.IdUsers);
+
             var userDto = new UserDto
             {
                 Id = user.IdUsers,
                 Email = user.Email,
                 Login = user.Login,
-                Note = user.Note
+                Note = user.Note,
+                Role = roleName // ✅ ДОБАВЛЕНО ПОЛЕ РОЛИ
             };
 
             return Ok(userDto);
@@ -179,12 +195,15 @@ namespace FuelManagementSystem.API.Controllers
             // АВТОМАТИЧЕСКОЕ НАЗНАЧЕНИЕ РОЛИ "user" ПОСЛЕ СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ
             await _userRoleService.AssignDefaultRoleToUserAsync(user.IdUsers, "System");
 
+            var roleName = await _userRoleService.GetUserRoleNameAsync(user.IdUsers);
+
             var userDto = new UserDto
             {
                 Id = user.IdUsers,
                 Email = user.Email,
                 Login = user.Login,
-                Note = user.Note
+                Note = user.Note,
+                Role = roleName // ✅ ДОБАВЛЕНО ПОЛЕ РОЛИ
             };
 
             return CreatedAtAction(nameof(GetUserById), new { id = user.IdUsers }, userDto);

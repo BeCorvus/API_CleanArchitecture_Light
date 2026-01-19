@@ -17,6 +17,9 @@ public class UserDto
     public string Login { get; set; } = null!;
 
     public string? Note { get; set; }
+
+    // ✅ ДОБАВЛЕНО: Роль пользователя
+    public string? Role { get; set; }
 }
 
 // Для создания пользователя в UserController (отличается от RegisterDto в AuthController)
