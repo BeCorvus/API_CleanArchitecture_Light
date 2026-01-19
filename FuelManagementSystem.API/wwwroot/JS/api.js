@@ -252,6 +252,46 @@ class ApiService {
         return isAdmin;
     }
 
+    // Проверка, является ли пользователь менеджером
+    isManager() {
+        const role = this.userRole || localStorage.getItem('userRole');
+        console.log('👔 Проверка прав менеджера для роли:', role);
+
+        if (!role) {
+            console.log('❌ Роль не определена');
+            return false;
+        }
+
+        const roleLower = role.toString().toLowerCase().trim();
+        console.log('👔 Приведенная роль:', roleLower);
+
+        const isManager = roleLower === 'manager' ||
+            roleLower === 'менеджер' ||
+            roleLower.includes('manager') ||
+            roleLower.includes('менеджер') ||
+            roleLower === '1001' ||
+            roleLower === '2' || // Если у вас менеджер имеет ID 2 в таблице ролей
+            roleLower === 'руководитель' ||
+            roleLower.includes('руковод');
+
+        console.log('👔 Результат проверки isManager:', isManager);
+        return isManager;
+    }
+
+    // Проверка, может ли пользователь просматривать статистику
+    canViewStatistics() {
+        const isAdmin = this.isAdmin();
+        const isManager = this.isManager();
+        const canView = isAdmin || isManager;
+
+        console.log('📊 Проверка доступа к статистике:');
+        console.log('👑 Администратор?:', isAdmin);
+        console.log('👔 Менеджер?:', isManager);
+        console.log('✅ Может просматривать статистику?:', canView);
+
+        return canView;
+    }
+
     // Метод для тестирования подключения
     async testConnection() {
         console.log('🔍 Тестируем подключение к API...');

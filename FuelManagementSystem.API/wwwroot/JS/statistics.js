@@ -47,6 +47,8 @@ document.addEventListener('DOMContentLoaded', function () {
     initChart();
 });
 
+// statistics.js - обновленная функция checkAuth()
+
 async function checkAuth() {
     console.log('🔐 Проверка авторизации для статистики...');
     const token = localStorage.getItem('authToken');
@@ -77,14 +79,21 @@ async function checkAuth() {
             userRoleElement.textContent = formatDisplayRole(userRole);
         }
 
-        // Проверяем права доступа
-        if (!apiService.isAdmin()) {
-            console.log('❌ Доступ запрещен: пользователь не администратор');
-            alert('Доступ к статистике только для администраторов');
+        // ✅ ИСПРАВЛЕНО: Используем метод canViewStatistics() из api.js
+        const canViewStats = apiService.canViewStatistics();
+
+        console.log('🔐 Результат проверки доступа:');
+        console.log('👑 Администратор?:', apiService.isAdmin());
+        console.log('👔 Менеджер?:', apiService.isManager());
+        console.log('✅ Может просматривать статистику?:', canViewStats);
+
+        if (!canViewStats) {
+            console.log('❌ Доступ запрещен: пользователь не администратор и не менеджер');
+            alert('Доступ к статистике только для администраторов и менеджеров');
             window.location.href = 'index.html';
             return;
         } else {
-            console.log('✅ Доступ разрешен: пользователь администратор');
+            console.log('✅ Доступ разрешен: пользователь администратор или менеджер');
         }
     } else {
         console.warn('⚠️ Роль пользователя не определена');
