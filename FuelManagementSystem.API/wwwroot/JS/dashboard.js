@@ -207,7 +207,7 @@ async function fetchTableData(tableName) {
             geyser: '/geyser',
             users: '/user',
             repair: '/repair',
-            roles: '/roles'
+            roles: '/role'
         };
 
         const endpoint = endpoints[tableName];
