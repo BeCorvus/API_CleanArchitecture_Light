@@ -13,9 +13,13 @@ document.addEventListener('DOMContentLoaded', function () {
 function initDashboard() {
     console.log('✅ Дашборд инициализирован');
     clearTable();
-}
 
-// dashboard.js - обновленная функция checkAuth()
+    // Дополнительная проверка через 1 секунду
+    setTimeout(() => {
+        console.log('🔍 Дополнительная проверка прав доступа...');
+        manageStatisticsButton();
+    }, 1000);
+}
 
 async function checkAuth() {
     console.log('🔐 Проверка авторизации...');
@@ -66,6 +70,8 @@ async function checkAuth() {
         console.log('✅ Может просматривать статистику?:', apiService.canViewStatistics());
     } else {
         console.warn('⚠️ Роль пользователя не найдена в localStorage');
+        // Все равно проверяем кнопку
+        manageStatisticsButton();
     }
 }
 
@@ -80,15 +86,17 @@ function manageStatisticsButton() {
     const canViewStats = apiService.canViewStatistics();
 
     console.log('📊 Управление кнопкой статистики:');
-    console.log('👑 Пользователь администратор?:', apiService.isAdmin());
-    console.log('👔 Пользователь менеджер?:', apiService.isManager());
+    console.log('👑 Администратор?:', apiService.isAdmin());
+    console.log('👔 Менеджер?:', apiService.isManager());
     console.log('✅ Может просматривать статистику?:', canViewStats);
     console.log('🎯 Текущий стиль кнопки:', statsBtn.style.display);
 
     if (canViewStats) {
-        statsBtn.style.display = 'block'; // или 'inline-block' в зависимости от CSS
+        statsBtn.classList.remove('hidden');
+        statsBtn.style.display = 'inline-block';
         console.log('✅ Кнопка статистики показана');
     } else {
+        statsBtn.classList.add('hidden');
         statsBtn.style.display = 'none';
         console.log('❌ Кнопка статистики скрыта');
     }
@@ -119,27 +127,6 @@ function formatDisplayRole(role) {
     return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
 
-function manageStatisticsButton() {
-    const statsBtn = document.getElementById('statisticsBtn');
-    if (!statsBtn) {
-        console.error('❌ Кнопка статистики не найдена в DOM');
-        return;
-    }
-
-    const isAdmin = apiService.isAdmin();
-    console.log('📊 Управление кнопкой статистики:');
-    console.log('👑 Пользователь администратор?:', isAdmin);
-    console.log('🎯 Текущий стиль кнопки:', statsBtn.style.display);
-
-    if (isAdmin) {
-        statsBtn.style.display = 'block'; // или 'inline-block' в зависимости от CSS
-        console.log('✅ Кнопка статистики показана');
-    } else {
-        statsBtn.style.display = 'none';
-        console.log('❌ Кнопка статистики скрыта');
-    }
-}
-
 function setupEventListeners() {
     const logoutBtn = document.querySelector('.logout-btn');
     if (logoutBtn) {
@@ -168,8 +155,62 @@ function logout() {
 }
 
 function showStatisticsPage() {
-    console.log('📊 Переход на страницу статистики');
-    window.location.href = 'statistics.html';
+    console.log('📊 Попытка перехода на страницу статистики');
+
+    // ✅ Проверяем доступ через API Service
+    if (!apiService.canViewStatistics()) {
+        alert('Доступ к статистике только для администраторов и менеджеров');
+        return;
+    }
+
+    // ✅ Делаем тестовый запрос к статистике для проверки
+    testStatisticsAccess()
+        .then(hasAccess => {
+            if (hasAccess) {
+                console.log('✅ Доступ подтвержден, переход на страницу статистики');
+                window.location.href = 'statistics.html';
+            } else {
+                alert('Сервер не разрешает доступ к статистике. Обратитесь к администратору.');
+            }
+        })
+        .catch(error => {
+            console.error('❌ Ошибка проверки доступа:', error);
+            alert('Ошибка проверки доступа: ' + error.message);
+        });
+}
+
+// Новая функция для тестирования доступа к статистике
+async function testStatisticsAccess() {
+    try {
+        console.log('🔍 Тестируем доступ к статистике...');
+        console.log('🔑 Токен:', apiService.token);
+        console.log('🎭 Роль:', apiService.userRole);
+
+        // Пробуем сделать запрос к статистике
+        const response = await fetch('http://localhost:5077/api/statistics', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${apiService.token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log('📊 Ответ сервера:', response.status, response.statusText);
+
+        if (response.ok) {
+            return true;
+        } else if (response.status === 403) {
+            const errorData = await response.text();
+            console.error('❌ Доступ запрещен:', errorData);
+            return false;
+        } else {
+            console.error('❌ Неизвестная ошибка:', response.status);
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Ошибка запроса:', error);
+        throw error;
+    }
 }
 
 function onTableSelect() {
@@ -352,54 +393,6 @@ function displayTableData(data) {
         tableRow.appendChild(actionsTd);
         tableBody.appendChild(tableRow);
     });
-}
-
-function manageStatisticsButton() {
-    const statsBtn = document.getElementById('statisticsBtn');
-    if (!statsBtn) {
-        console.error('❌ Кнопка статистики не найдена в DOM');
-        return;
-    }
-
-    const userRole = localStorage.getItem('userRole');
-    if (!userRole) {
-        console.log('❌ Роль пользователя не определена');
-        statsBtn.style.display = 'none';
-        return;
-    }
-
-    // Получаем роль в нижнем регистре для проверки
-    const roleLower = userRole.toString().toLowerCase().trim();
-
-    const isAdmin = roleLower === 'admin' ||
-        roleLower === '0' ||
-        roleLower === 'администратор' ||
-        roleLower === 'админ' ||
-        roleLower.includes('admin') ||
-        roleLower.includes('админ') ||
-        roleLower === 'administrator';
-
-    const isManager = roleLower === 'manager' ||
-        roleLower === 'менеджер' ||
-        roleLower.includes('manager') ||
-        roleLower.includes('менеджер') ||
-        roleLower === '1001' ||
-        roleLower === '2' ||
-        roleLower === 'руководитель' ||
-        roleLower.includes('руковод');
-
-    console.log('📊 Управление кнопкой статистики:');
-    console.log('👑 Пользователь администратор?:', isAdmin);
-    console.log('👔 Пользователь менеджер?:', isManager);
-    console.log('🎯 Текущий стиль кнопки:', statsBtn.style.display);
-
-    if (isAdmin || isManager) {
-        statsBtn.style.display = 'block'; // или 'inline-block' в зависимости от CSS
-        console.log('✅ Кнопка статистики показана');
-    } else {
-        statsBtn.style.display = 'none';
-        console.log('❌ Кнопка статистики скрыта');
-    }
 }
 
 function formatValue(value) {

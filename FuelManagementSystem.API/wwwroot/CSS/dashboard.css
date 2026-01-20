@@ -513,3 +513,114 @@
     color: #0c5460;
     border: 1px solid #bee5eb;
 }
+
+/* ✅ ДОБАВЛЕНО: Классы для управления видимостью */
+.hidden {
+    display: none !important;
+}
+
+.visible {
+    display: inline-block !important;
+}
+
+/* ✅ ДОБАВЛЕНО: Специальные стили для кнопки статистики при разных ролях */
+.admin-statistics-btn {
+    background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%) !important;
+}
+
+.manager-statistics-btn {
+    background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%) !important;
+}
+
+/* ✅ ДОБАВЛЕНО: Индикатор доступа */
+.access-indicator {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    display: none;
+}
+
+    .access-indicator.admin {
+        background: #ffebee;
+        color: #c62828;
+        border: 1px solid #ef9a9a;
+    }
+
+    .access-indicator.manager {
+        background: #e8f5e9;
+        color: #2e7d32;
+        border: 1px solid #a5d6a7;
+    }
+
+    .access-indicator.user {
+        background: #e3f2fd;
+        color: #1565c0;
+        border: 1px solid #90caf9;
+    }
+
+/* ✅ ДОБАВЛЕНО: Стили для модального окна статистики */
+.statistics-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.statistics-modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    max-width: 800px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.statistics-modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ✅ ДОБАВЛЕНО: Адаптивные стили для мобильных устройств */
+@media (max-width: 480px) {
+    .nav-btn {
+        padding: 8px 15px;
+        font-size: 14px;
+    }
+
+    #statisticsBtn {
+        padding: 10px 15px;
+        font-size: 14px;
+        margin-right: 10px;
+    }
+
+    .user-info {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
