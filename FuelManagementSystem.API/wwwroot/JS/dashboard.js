@@ -17,9 +17,9 @@ function initDashboard() {
     // Обновляем список таблиц в зависимости от роли
     updateTableSelectBasedOnRole();
 
-    // Дополнительная проверка через 1 секунду
+    // Проверка прав доступа
     setTimeout(() => {
-        console.log('🔍 Дополнительная проверка прав доступа...');
+        console.log('🔍 Проверка прав доступа...');
         manageStatisticsButton();
     }, 1000);
 }
@@ -42,12 +42,6 @@ async function checkAuth() {
     console.log('👤 Имя:', userName);
     console.log('🎭 Роль:', userRole);
 
-    // Проверяем данные для отладки
-    const userDebug = localStorage.getItem('userDebug');
-    if (userDebug) {
-        console.log('🔍 Отладочные данные пользователя:', JSON.parse(userDebug));
-    }
-
     if (userName) {
         const userNameElement = document.getElementById('userName');
         if (userNameElement) {
@@ -63,33 +57,25 @@ async function checkAuth() {
             console.log('✅ Роль пользователя установлена:', userRole);
         }
 
-        // Управление видимостью кнопки статистики
         manageStatisticsButton();
-
-        // Обновляем список таблиц в зависимости от роли
         updateTableSelectBasedOnRole();
 
-        // ✅ ДОБАВЛЕНО: Выводим информацию о доступе к статистике
         console.log('📊 Проверка доступа к статистике:');
-        console.log('👑 Администратор?:', apiService.isAdmin());
-        console.log('👔 Менеджер?:', apiService.isManager());
-        console.log('✅ Может просматривать статистику?:', apiService.canViewStatistics());
+        console.log('👑 Администратор?:', api.isAdmin());
+        console.log('👔 Менеджер?:', api.isManager());
+        console.log('✅ Может просматривать статистику?:', api.canViewStatistics());
     } else {
         console.warn('⚠️ Роль пользователя не найдена в localStorage');
-        // Все равно проверяем кнопку
         manageStatisticsButton();
     }
 }
 
-// ✅ ОБНОВЛЕННАЯ ФУНКЦИЯ: Определяет, какие поля нужно скрывать в зависимости от роли
 function getHiddenFieldsForRole() {
-    const isAdmin = apiService.isAdmin();
+    const isAdmin = api.isAdmin();
 
     if (isAdmin) {
-        // ✅ Администратор видит все поля, кроме чувствительных
         return ['passwordHash', 'resetToken', 'resetTokenExpiry'];
     } else {
-        // ✅ Не-администраторы не видят ID поля и служебные поля
         return [
             'passwordHash', 'resetToken', 'resetTokenExpiry',
             'dateOfRecording', 'dateOfChange', 'whoRecorded',
@@ -102,13 +88,11 @@ function getHiddenFieldsForRole() {
     }
 }
 
-// ✅ ОБНОВЛЕННАЯ ФУНКЦИЯ: Определяет, нужно ли скрывать ID столбцы
 function shouldHideIdColumns() {
-    const isAdmin = apiService.isAdmin();
-    return !isAdmin; // Скрываем ID для всех, кроме администраторов
+    const isAdmin = api.isAdmin();
+    return !isAdmin;
 }
 
-// ✅ ОБНОВЛЕННАЯ ФУНКЦИЯ: Проверяет, содержит ли заголовок ID
 function isIdColumn(header) {
     if (!header) return false;
     const headerLower = header.toString().toLowerCase();
@@ -117,115 +101,77 @@ function isIdColumn(header) {
         !headerLower.includes('identity');
 }
 
-// ✅ НОВАЯ ФУНКЦИЯ: Определяет, является ли поле служебным
 function isServiceColumn(header) {
     if (!header) return false;
     const headerLower = header.toString().toLowerCase();
 
-    // ✅ Проверяем различные варианты написания служебных полей
-    return headerLower.includes('dateofrecording') ||
-        headerLower.includes('date_of_recording') ||
-        headerLower.includes('dateofchange') ||
-        headerLower.includes('date_of_change') ||
-        headerLower.includes('whorecorded') ||
-        headerLower.includes('who_recorded') ||
-        headerLower.includes('whochanged') ||
-        headerLower.includes('who_changed') ||
-        headerLower.includes('whendeleted') ||
-        headerLower.includes('recordedby') ||
-        headerLower.includes('changedby') ||
-        headerLower.includes('createdby') ||
-        headerLower.includes('modifiedby') ||
-        headerLower.includes('createdat') ||
-        headerLower.includes('updatedat') ||
-        headerLower.includes('deletedat') ||
-        headerLower.includes('date') && headerLower.includes('record') ||
-        headerLower.includes('date') && headerLower.includes('change');
+    return headerLower.includes('record') ||
+        headerLower.includes('change') ||
+        headerLower.includes('who') ||
+        headerLower.includes('when') ||
+        headerLower.includes('delete');
 }
 
-// ✅ НОВАЯ ФУНКЦИЯ: Сортируем заголовки в правильном порядке (служебные поля в конце)
-function sortHeadersForAdmin(headers) {
-    const isAdmin = apiService.isAdmin();
+function getServiceFieldOrder(header) {
+    if (!header) return 999;
 
-    if (!isAdmin) {
-        return headers; // Для не-администраторов не сортируем
+    const headerLower = header.toString().toLowerCase();
+    const cleanHeader = headerLower.replace(/[^a-z]/g, '');
+
+    if (cleanHeader.includes('daterecord') || cleanHeader.includes('recorddate')) {
+        return 1;
+    } else if (cleanHeader.includes('datechange') || cleanHeader.includes('changedate')) {
+        return 2;
+    } else if (cleanHeader.includes('whorecord') || cleanHeader.includes('recordwho')) {
+        return 3;
+    } else if (cleanHeader.includes('whochange') || cleanHeader.includes('changewho')) {
+        return 4;
+    } else if (cleanHeader.includes('whendelete') || cleanHeader.includes('deletewhen')) {
+        return 5;
+    } else if (cleanHeader.includes('date') && cleanHeader.includes('record')) {
+        return 1;
+    } else if (cleanHeader.includes('date') && cleanHeader.includes('change')) {
+        return 2;
+    } else if (cleanHeader.includes('who') && cleanHeader.includes('record')) {
+        return 3;
+    } else if (cleanHeader.includes('who') && cleanHeader.includes('change')) {
+        return 4;
+    } else if (cleanHeader.includes('when') && cleanHeader.includes('delete')) {
+        return 5;
     }
 
-    // ✅ Определяем порядок служебных полей
-    const serviceFieldOrder = [
-        // Основные служебные поля в нужном порядке
-        'Date_of_recording', 'date_of_recording', 'DateOfRecording', 'dateOfRecording',
-        'Date_of_change', 'date_of_change', 'DateOfChange', 'dateOfChange',
-        'Who_recorded', 'who_recorded', 'WhoRecorded', 'whoRecorded',
-        'Who_changed', 'who_changed', 'WhoChanged', 'whoChanged',
-        'WhenDeleted', 'whenDeleted', 'When_Deleted', 'when_deleted'
-    ];
+    return 999;
+}
 
-    // Разделяем заголовки на обычные и служебные
+function sortHeadersForAdmin(headers) {
+    const isAdmin = api.isAdmin();
+
+    if (!isAdmin) {
+        return headers;
+    }
+
     const regularHeaders = [];
     const serviceHeaders = [];
 
     headers.forEach(header => {
-        // Проверяем, является ли поле служебным
-        let isService = false;
-
-        // Проверяем точное соответствие с учетом регистра
-        if (serviceFieldOrder.includes(header)) {
-            isService = true;
-        } else {
-            // Проверяем по нижнему регистру
-            const headerLower = header.toLowerCase();
-            isService = serviceFieldOrder.some(serviceField =>
-                serviceField.toLowerCase() === headerLower
-            );
-        }
-
-        // Также проверяем через функцию isServiceColumn
-        if (!isService && isServiceColumn(header)) {
-            isService = true;
-        }
-
-        if (isService) {
-            serviceHeaders.push(header);
+        const order = getServiceFieldOrder(header);
+        if (order < 999) {
+            serviceHeaders.push({ header, order });
         } else {
             regularHeaders.push(header);
         }
     });
 
-    // Сортируем служебные поля в заданном порядке
-    const sortedServiceHeaders = [];
+    serviceHeaders.sort((a, b) => a.order - b.order);
+    const sortedServiceHeaders = serviceHeaders.map(item => item.header);
 
-    // Добавляем в порядке, определенном в serviceFieldOrder
-    serviceFieldOrder.forEach(orderedField => {
-        // Ищем точное совпадение
-        const exactMatch = serviceHeaders.find(header => header === orderedField);
-        if (exactMatch && !sortedServiceHeaders.includes(exactMatch)) {
-            sortedServiceHeaders.push(exactMatch);
-        }
+    console.log('📊 Порядок служебных полей для администратора:');
+    console.log('📌 Обычные поля:', regularHeaders);
+    console.log('🔧 Служебные поля:', sortedServiceHeaders);
 
-        // Ищем совпадение без учета регистра
-        const orderedFieldLower = orderedField.toLowerCase();
-        const caseInsensitiveMatch = serviceHeaders.find(header =>
-            header.toLowerCase() === orderedFieldLower &&
-            !sortedServiceHeaders.includes(header)
-        );
-        if (caseInsensitiveMatch) {
-            sortedServiceHeaders.push(caseInsensitiveMatch);
-        }
-    });
-
-    // Добавляем оставшиеся служебные поля
-    serviceHeaders.forEach(header => {
-        if (!sortedServiceHeaders.includes(header)) {
-            sortedServiceHeaders.push(header);
-        }
-    });
-
-    // Объединяем: сначала обычные поля, затем служебные
     return [...regularHeaders, ...sortedServiceHeaders];
 }
 
-// ✅ НОВАЯ ФУНКЦИЯ: Обновление списка таблиц в зависимости от роли
 function updateTableSelectBasedOnRole() {
     const tableSelect = document.getElementById('tableSelect');
     if (!tableSelect) {
@@ -233,17 +179,15 @@ function updateTableSelectBasedOnRole() {
         return;
     }
 
-    const isAdmin = apiService.isAdmin();
+    const isAdmin = api.isAdmin();
     console.log('🎭 Обновление списка таблиц для роли. Админ?:', isAdmin);
 
-    // Находим опции для таблиц пользователей и ролей
     const options = tableSelect.options;
 
     for (let i = 0; i < options.length; i++) {
         const option = options[i];
         const value = option.value;
 
-        // Скрываем/показываем опции в зависимости от роли
         if (value === 'users' || value === 'roles') {
             if (isAdmin) {
                 option.style.display = 'block';
@@ -256,13 +200,11 @@ function updateTableSelectBasedOnRole() {
                 option.classList.add('hidden');
                 console.log(`🚫 Таблица "${option.text}" скрыта для не-админа`);
 
-                // Если эта таблица была выбрана, сбрасываем выбор
                 if (tableSelect.value === value) {
                     tableSelect.value = '';
                     currentTable = '';
                     clearTable();
 
-                    // Отключаем кнопку генерации
                     const generateBtn = document.getElementById('generateBtn');
                     if (generateBtn) {
                         generateBtn.disabled = true;
@@ -274,7 +216,6 @@ function updateTableSelectBasedOnRole() {
         }
     }
 
-    // Если все опции скрыты, показываем сообщение
     const visibleOptions = Array.from(options).filter(opt => opt.style.display !== 'none');
     const noDataDiv = document.getElementById('noData');
 
@@ -296,14 +237,12 @@ function manageStatisticsButton() {
         return;
     }
 
-    // ✅ Используем метод canViewStatistics() из api.js
-    const canViewStats = apiService.canViewStatistics();
+    const canViewStats = api.canViewStatistics();
 
     console.log('📊 Управление кнопки статистики:');
-    console.log('👑 Администратор?:', apiService.isAdmin());
-    console.log('👔 Менеджер?:', apiService.isManager());
+    console.log('👑 Администратор?:', api.isAdmin());
+    console.log('👔 Менеджер?:', api.isManager());
     console.log('✅ Может просматривать статистику?:', canViewStats);
-    console.log('🎯 Текущий стиль кнопки:', statsBtn.style.display);
 
     if (canViewStats) {
         statsBtn.classList.remove('hidden');
@@ -337,7 +276,6 @@ function formatDisplayRole(role) {
         return 'Техник';
     }
 
-    // Для неизвестных ролей - первая буква заглавная
     return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
 
@@ -354,7 +292,6 @@ function setupEventListeners() {
         }
     });
 
-    // Обработчик для кнопки статистики
     const statsBtn = document.getElementById('statisticsBtn');
     if (statsBtn) {
         statsBtn.addEventListener('click', showStatisticsPage);
@@ -363,21 +300,18 @@ function setupEventListeners() {
 
 function logout() {
     if (confirm('Вы уверены, что хотите выйти?')) {
-        apiService.clearData();
-        window.location.href = 'login.html';
+        api.logout();
     }
 }
 
 function showStatisticsPage() {
     console.log('📊 Попытка перехода на страницу статистики');
 
-    // ✅ Проверяем доступ через API Service
-    if (!apiService.canViewStatistics()) {
+    if (!api.canViewStatistics()) {
         alert('Доступ к статистике только для администраторов и менеджеров');
         return;
     }
 
-    // ✅ Делаем тестовый запрос к статистике для проверки
     testStatisticsAccess()
         .then(hasAccess => {
             if (hasAccess) {
@@ -393,18 +327,16 @@ function showStatisticsPage() {
         });
 }
 
-// Новая функция для тестирования доступа к статистике
 async function testStatisticsAccess() {
     try {
         console.log('🔍 Тестируем доступ к статистике...');
-        console.log('🔑 Токен:', apiService.token);
-        console.log('🎭 Роль:', apiService.userRole);
+        console.log('🔑 Токен:', api.token);
+        console.log('🎭 Роль:', api.userRole);
 
-        // Пробуем сделать запрос к статистике
         const response = await fetch('http://localhost:5077/api/statistics', {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${apiService.token}`,
+                'Authorization': `Bearer ${api.token}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -489,63 +421,24 @@ async function generateData() {
 
 async function fetchTableData(tableName) {
     try {
-        const endpoints = {
-            equipment: '/equipment',
-            fuel: '/fuel',
-            geyser: '/geyser',
-            users: '/user',
-            repair: '/repair',
-            roles: '/role'
-        };
+        console.log(`📥 Запрос данных для таблицы: ${tableName}`);
 
-        const endpoint = endpoints[tableName];
-        if (!endpoint) {
-            console.warn(`Нет эндпоинта для таблицы: ${tableName}`);
+        // Используем метод из API
+        const response = await api.getTableData(tableName);
+
+        console.log(`📊 Данные получены для ${tableName}:`, response);
+
+        if (!response || response.length === 0) {
+            console.log(`⚠️ Нет данных для таблицы ${tableName}`);
             return [];
         }
 
-        console.log(`Запрос к: ${endpoint}`);
-        const response = await apiService.request(endpoint);
-
-        if (!response) {
-            throw new Error('Сервер не вернул данные');
-        }
-
-        let data = response;
-        if (!Array.isArray(response)) {
-            data = convertToArray(response);
-        }
-
-        return data;
+        return response;
     } catch (error) {
-        console.error(`Ошибка загрузки ${tableName}:`, error);
-        showNotification('Ошибка при загрузке данных с сервера', 'error');
+        console.error(`❌ Ошибка загрузки ${tableName}:`, error);
+        showNotification(`Ошибка при загрузке данных: ${error.message}`, 'error');
         return [];
     }
-}
-
-function convertToArray(response) {
-    if (Array.isArray(response)) {
-        return response;
-    }
-
-    if (response && typeof response === 'object') {
-        const arrayProperties = ['data', 'items', 'results', 'records'];
-        for (const prop of arrayProperties) {
-            if (response[prop] && Array.isArray(response[prop])) {
-                return response[prop];
-            }
-        }
-
-        const idFields = ['id', 'Id', 'IdUsers', 'IdEquipment', 'IdFuel', 'IdGeyser', 'IdRepair', 'IdRoles'];
-        for (const field of idFields) {
-            if (response[field] !== undefined) {
-                return [response];
-            }
-        }
-    }
-
-    return [];
 }
 
 function displayTableData(data) {
@@ -562,7 +455,7 @@ function displayTableData(data) {
     const firstItem = data[0];
     const headers = Object.keys(firstItem);
 
-    // ✅ ОБНОВЛЕНО: Используем динамический список исключаемых полей
+    // Получаем поля для скрытия
     const hiddenFields = getHiddenFieldsForRole();
 
     // Сначала фильтруем скрытые поля
@@ -570,33 +463,41 @@ function displayTableData(data) {
         !hiddenFields.includes(header.toLowerCase())
     );
 
-    // ✅ ДОБАВЛЕНО: Фильтрация ID столбцов для не-администраторов
+    // Фильтрация ID столбцов для не-администраторов
     if (shouldHideIdColumns()) {
         console.log('🚫 Скрываем ID столбцы для не-администратора');
         displayHeaders = displayHeaders.filter(header => !isIdColumn(header));
     }
 
-    // ✅ ВАЖНО: Для администратора сортируем заголовки - служебные поля в конце
+    // Для администратора сортируем заголовки - служебные поля в конце
     displayHeaders = sortHeadersForAdmin(displayHeaders);
+
+    console.log('📋 Итоговый порядок столбцов:');
+    displayHeaders.forEach((header, index) => {
+        const order = getServiceFieldOrder(header);
+        console.log(`${index + 1}. ${header} (порядок: ${order})`);
+    });
 
     const headerRow = document.createElement('tr');
 
-    // ✅ ДОБАВЛЕНО: Столбец с нумерацией
+    // Столбец с нумерацией
     const numberTh = document.createElement('th');
     numberTh.textContent = '№';
     numberTh.style.width = '60px';
     numberTh.style.textAlign = 'center';
     headerRow.appendChild(numberTh);
 
-    displayHeaders.forEach(header => {
+    displayHeaders.forEach((header, index) => {
         const th = document.createElement('th');
         th.textContent = formatHeader(header);
 
-        // ✅ ДОБАВЛЕНО: Добавляем классы для служебных полей администратора
-        if (apiService.isAdmin() && isServiceColumn(header)) {
+        // Добавляем классы для служебных полей администратора
+        const order = getServiceFieldOrder(header);
+        if (api.isAdmin() && order < 999) {
             th.classList.add('admin-service-header');
             th.style.backgroundColor = '#e8f5e9';
             th.style.borderLeft = '2px solid #4caf50';
+            th.title = `Служебное поле (порядок: ${order})`;
         }
 
         headerRow.appendChild(th);
@@ -610,51 +511,64 @@ function displayTableData(data) {
 
     tableHeader.appendChild(headerRow);
 
-    data.forEach((row, index) => {
+    data.forEach((row, rowIndex) => {
         const tableRow = document.createElement('tr');
 
-        // ✅ ДОБАВЛЕНО: Ячейка с номером строки
+        // Ячейка с номером строки
         const numberTd = document.createElement('td');
-        numberTd.textContent = index + 1;
+        numberTd.textContent = rowIndex + 1;
         numberTd.style.textAlign = 'center';
         numberTd.style.fontWeight = 'bold';
         numberTd.style.backgroundColor = '#f8f9fa';
         tableRow.appendChild(numberTd);
 
-        displayHeaders.forEach(header => {
+        displayHeaders.forEach((header, colIndex) => {
             const td = document.createElement('td');
             let value = row[header];
             value = formatValue(value);
             td.textContent = value;
 
-            // ✅ ДОБАВЛЕНО: Специальное форматирование для служебных полей администратора
-            if (apiService.isAdmin()) {
-                const lowerHeader = header.toLowerCase();
-                if (isServiceColumn(header)) {
-                    // ✅ Служебные поля дат
-                    if (lowerHeader.includes('date') || lowerHeader.includes('time')) {
+            // Специальное форматирование для служебных полей администратора
+            if (api.isAdmin()) {
+                const order = getServiceFieldOrder(header);
+
+                if (order < 999) {
+                    // Служебные поля дат (порядок 1 и 2)
+                    if (order === 1 || order === 2) {
                         td.classList.add('admin-service-field-date');
                         td.style.fontFamily = 'monospace';
                         td.style.fontSize = '12px';
                         td.style.color = '#0066cc';
                         td.style.backgroundColor = '#f0f8ff';
+                        td.title = `Дата (порядок: ${order})`;
                     }
-                    // ✅ Служебные поля "кто"
-                    else if (lowerHeader.includes('who') || lowerHeader.includes('by')) {
+                    // Служебные поля "кто" (порядок 3 и 4)
+                    else if (order === 3 || order === 4) {
                         td.classList.add('admin-service-field-user');
                         td.style.fontStyle = 'italic';
                         td.style.color = '#666';
                         td.style.backgroundColor = '#f9f9f9';
+                        td.title = `Пользователь (порядок: ${order})`;
                     }
-                    // ✅ Остальные служебные поля
+                    // Служебные поля "когда удалено" (порядок 5)
+                    else if (order === 5) {
+                        td.classList.add('admin-service-field-delete');
+                        td.style.fontFamily = 'monospace';
+                        td.style.fontSize = '11px';
+                        td.style.color = '#cc0000';
+                        td.style.backgroundColor = '#fff0f0';
+                        td.title = 'Дата удаления';
+                    }
+                    // Остальные служебные поля
                     else {
                         td.classList.add('admin-service-field');
                         td.style.fontFamily = 'monospace';
                         td.style.fontSize = '11px';
                         td.style.color = '#0066cc';
+                        td.title = `Служебное поле (порядок: ${order})`;
                     }
                 }
-                // ✅ ID поля
+                // ID поля
                 else if (isIdColumn(header)) {
                     td.style.fontFamily = 'monospace';
                     td.style.backgroundColor = '#fff0f0';
@@ -758,7 +672,6 @@ function formatHeader(header) {
         'createddate': 'Дата создания',
         'modifieddate': 'Дата изменения',
         'isactive': 'Активен',
-        // ✅ ДОБАВЛЕНО: Переводы для служебных полей с разными вариантами написания
         'dateofrecording': 'Дата записи',
         'date_of_recording': 'Дата записи',
         'Date_of_recording': 'Дата записи',
@@ -785,17 +698,14 @@ function formatHeader(header) {
 
     const lowerHeader = header.toLowerCase();
 
-    // Сначала ищем точное совпадение (с учетом регистра)
     if (translations[header]) {
         return translations[header];
     }
 
-    // Затем ищем совпадение в нижнем регистре
     if (translations[lowerHeader]) {
         return translations[lowerHeader];
     }
 
-    // Форматируем заголовок, если не нашли перевод
     const words = header.replace(/([A-Z])/g, ' $1').trim().split(' ');
     return words.map(word =>
         word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
@@ -811,19 +721,16 @@ function viewDetails(data, displayHeaders = null) {
 
     let fieldsToShow = displayHeaders || Object.keys(data);
 
-    // ✅ ОБНОВЛЕНО: Используем динамический список исключаемых полей
     const hiddenFields = getHiddenFieldsForRole();
     fieldsToShow = fieldsToShow.filter(header =>
         !hiddenFields.includes(header.toLowerCase())
     );
 
-    // ✅ ДОБАВЛЕНО: Фильтрация ID полей для не-администраторов в модальном окне
     if (shouldHideIdColumns()) {
         fieldsToShow = fieldsToShow.filter(header => !isIdColumn(header));
     }
 
-    // ✅ ДОБАВЛЕНО: Для администратора сортируем служебные поля в конце
-    if (apiService.isAdmin()) {
+    if (api.isAdmin()) {
         fieldsToShow = sortHeadersForAdmin(fieldsToShow);
     }
 
@@ -831,8 +738,9 @@ function viewDetails(data, displayHeaders = null) {
         let value = data[key];
         value = formatValue(value);
 
-        const isService = apiService.isAdmin() && isServiceColumn(key);
-        const isId = apiService.isAdmin() && isIdColumn(key);
+        const order = getServiceFieldOrder(key);
+        const isService = order < 999;
+        const isId = isIdColumn(key);
 
         html += `
             <div class="detail-row">
@@ -896,6 +804,54 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
+// Добавляем функцию отладки
+function debugDashboard() {
+    console.log('🐛 Отладка панели управления:');
+    console.log('🎭 Роль пользователя:', api.userRole);
+    console.log('👤 Имя пользователя:', api.userName);
+    console.log('👑 Администратор?:', api.isAdmin());
+    console.log('👔 Менеджер?:', api.isManager());
+    console.log('📊 Может смотреть статистику?:', api.canViewStatistics());
+    console.log('📋 Текущая таблица:', currentTable);
+    console.log('📊 Текущие данные:', currentData ? currentData.length : 0, 'записей');
+
+    if (currentData && currentData.length > 0) {
+        console.log('🔍 Структура данных:');
+        const firstItem = currentData[0];
+        console.log('🔑 Ключи:', Object.keys(firstItem));
+
+        // Проверяем наличие служебных полей
+        const serviceFields = Object.keys(firstItem).filter(key => isServiceColumn(key));
+        console.log('🔧 Служебные поля в данных:', serviceFields);
+
+        if (api.isAdmin() && serviceFields.length === 0) {
+            console.warn('⚠️ ВНИМАНИЕ: Администратор не видит служебные поля!');
+            console.warn('⚠️ Проверьте endpoint - возможно нужно использовать /admin endpoint');
+        }
+    }
+}
+
+// Добавляем кнопку отладки в интерфейс
+document.addEventListener('DOMContentLoaded', function () {
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = '🐛 Отладка';
+    debugBtn.style.cssText = `
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        z-index: 9999;
+        padding: 5px 10px;
+        background: #ff6b6b;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 12px;
+    `;
+    debugBtn.onclick = debugDashboard;
+    document.body.appendChild(debugBtn);
+});
+
 // Экспорт функций
 window.showStatisticsPage = showStatisticsPage;
 window.logout = logout;
@@ -904,3 +860,4 @@ window.generateData = generateData;
 window.refreshData = refreshData;
 window.viewDetails = viewDetails;
 window.closeModal = closeModal;
+window.debugDashboard = debugDashboard;

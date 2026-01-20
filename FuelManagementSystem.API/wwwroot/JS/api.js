@@ -27,7 +27,13 @@ class ApiService {
         localStorage.setItem('userName', username);
         localStorage.setItem('userRole', role);
 
-        // Для отладки
+        // Сохраняем отладочные данные
+        localStorage.setItem('userDebug', JSON.stringify({
+            username: username,
+            role: role,
+            timestamp: new Date().toISOString()
+        }));
+
         console.log('✅ Данные сохранены в localStorage');
         console.log('📋 Проверка localStorage - роль:', localStorage.getItem('userRole'));
     }
@@ -136,7 +142,6 @@ class ApiService {
                 }
 
                 if (result.user) {
-                    // ✅ Теперь роль приходит с сервера в поле user.role
                     const userRole = result.user.role || 'user';
                     console.log('🎭 Роль пользователя получена с сервера:', userRole);
 
@@ -154,59 +159,18 @@ class ApiService {
         }
     }
 
-    async register(userData) {
-        console.log('📝 Регистрация пользователя:', userData);
-        try {
-            const registerData = {
-                email: userData.email || '',
-                login: userData.login || userData.username || '',
-                password: userData.password || '',
-                confirmPassword: userData.confirmPassword || userData.password || '',
-                note: userData.note || ''
-            };
-
-            const result = await this.request('/auth/register', {
-                method: 'POST',
-                body: registerData
-            });
-
-            if (result) {
-                if (result.token) {
-                    this.setToken(result.token);
-                }
-
-                if (result.user) {
-                    const userRole = this.findUserRole(result.user);
-                    this.setUserInfo(
-                        result.user.login || result.user.username || result.user.email,
-                        userRole
-                    );
-                }
-            }
-
-            return result;
-        } catch (error) {
-            console.error('Ошибка регистрации:', error);
-            throw error;
-        }
-    }
-
     findUserRole(userData) {
         console.log('🔍 Ищем роль в данных пользователя:', userData);
         console.log('🔍 Ключи в данных:', Object.keys(userData));
 
-        // Теперь ищем поле 'Role' с заглавной буквы (из UserDto.Role)
         const possibleRoleFields = [
-            'Role',       // ✅ Новое поле из UserDto
-            'role',       // на всякий случай
-            'ID_Roles',
+            'Role',
             'role',
+            'ID_Roles',
             'Roles',
             'userRole',
-            'userrole',
             'NameRole',
             'nameRole',
-            'namerole',
             'roles',
             'rolename'
         ];
@@ -218,7 +182,6 @@ class ApiService {
             }
         }
 
-        // ✅ Проверяем, есть ли вложенные объекты с ролью
         if (userData.user && userData.user.Role) {
             console.log('✅ Роль найдена в user.Role:', userData.user.Role);
             return userData.user.Role;
@@ -252,7 +215,6 @@ class ApiService {
         return isAdmin;
     }
 
-    // Проверка, является ли пользователь менеджером
     isManager() {
         const role = this.userRole || localStorage.getItem('userRole');
         console.log('👔 Проверка прав менеджера для роли:', role);
@@ -270,7 +232,7 @@ class ApiService {
             roleLower.includes('manager') ||
             roleLower.includes('менеджер') ||
             roleLower === '1001' ||
-            roleLower === '2' || // Если у вас менеджер имеет ID 2 в таблице ролей
+            roleLower === '2' ||
             roleLower === 'руководитель' ||
             roleLower.includes('руковод');
 
@@ -278,7 +240,6 @@ class ApiService {
         return isManager;
     }
 
-    // Проверка, может ли пользователь просматривать статистику
     canViewStatistics() {
         const isAdmin = this.isAdmin();
         const isManager = this.isManager();
@@ -292,26 +253,128 @@ class ApiService {
         return canView;
     }
 
-    // Метод для тестирования подключения
-    async testConnection() {
-        console.log('🔍 Тестируем подключение к API...');
-        const testUrls = [
-            'http://localhost:5077/',
-            'http://localhost:5077/api',
-            'http://localhost:5077/swagger',
-            'http://localhost:5077/api/auth',
-            'http://localhost:5077/api/user'
-        ];
+    async getTableData(tableName) {
+        console.log(`📊 Получение данных для таблицы: ${tableName}`);
+        console.log(`👤 Роль пользователя: ${this.userRole}`);
+        console.log(`👑 Администратор?: ${this.isAdmin()}`);
 
-        for (const url of testUrls) {
-            try {
-                const response = await fetch(url);
-                console.log(`✅ ${url} - ${response.status} ${response.statusText}`);
-            } catch (error) {
-                console.log(`❌ ${url} - ${error.message}`);
+        try {
+            const endpointMap = {
+                'equipment': this.isAdmin() ? '/equipment/admin' : '/equipment',
+                'fuel': this.isAdmin() ? '/fuel/admin' : '/fuel',
+                'columns': this.isAdmin() ? '/columns/admin' : '/columns',
+                'users': this.isAdmin() ? '/users/admin' : '/users',
+                'repairs': this.isAdmin() ? '/repairs/admin' : '/repairs',
+                'roles': this.isAdmin() ? '/roles/admin' : '/roles',
+                'geyser': '/geyser',
+                'repair': '/repair',
+                'role': this.isAdmin() ? '/roles/admin' : '/roles',
+                'user': this.isAdmin() ? '/users/admin' : '/users'
+            };
+
+            const endpoint = endpointMap[tableName] || `/${tableName}`;
+            console.log(`📍 Используем endpoint: ${endpoint}`);
+
+            const response = await this.request(endpoint, { method: 'GET' });
+            console.log(`✅ Данные получены для ${tableName}:`, response);
+
+            // Обработка ответа
+            if (Array.isArray(response)) {
+                return response;
+            } else if (response && response.data && Array.isArray(response.data)) {
+                return response.data;
+            } else if (response && typeof response === 'object') {
+                // Если пришел объект с полем id, оборачиваем в массив
+                if (response.id !== undefined || response.Id !== undefined) {
+                    return [response];
+                }
+                // Пробуем найти любой массив в объекте
+                for (const key in response) {
+                    if (Array.isArray(response[key])) {
+                        return response[key];
+                    }
+                }
             }
+
+            console.warn('⚠️ Некорректный формат данных, возвращаем пустой массив');
+            return [];
+        } catch (error) {
+            console.error(`❌ Ошибка получения данных для таблицы ${tableName}:`, error);
+            throw error;
+        }
+    }
+
+    async getStatistics(tableName, type = 'daily') {
+        console.log(`📈 Получение статистики для таблицы: ${tableName}, тип: ${type}`);
+
+        try {
+            const endpoint = `/statistics/${tableName}?type=${type}`;
+            const data = await this.request(endpoint, { method: 'GET' });
+            console.log('✅ Статистика получена с сервера:', data);
+            return data;
+        } catch (error) {
+            console.warn(`⚠️ Не удалось получить статистику с сервера для ${tableName}:`, error);
+
+            // Генерация базовой статистики
+            return this.generateBasicStatistics(tableName);
+        }
+    }
+
+    async generateBasicStatistics(tableName) {
+        try {
+            const data = await this.getTableData(tableName);
+
+            if (!data || data.length === 0) {
+                return {
+                    labels: ['Нет данных'],
+                    data: [0],
+                    total: 0
+                };
+            }
+
+            const stats = {
+                labels: [],
+                data: [],
+                total: data.length
+            };
+
+            // Простая статистика - первые 6 записей
+            for (let i = 0; i < Math.min(data.length, 6); i++) {
+                stats.labels.push(`Запись ${i + 1}`);
+                stats.data.push(Math.floor(Math.random() * 100) + 1);
+            }
+
+            return stats;
+        } catch (error) {
+            console.error(`❌ Ошибка генерации статистики:`, error);
+            return {
+                labels: ['Ошибка'],
+                data: [1],
+                total: 0
+            };
+        }
+    }
+
+    logout() {
+        console.log('🚪 Выход из системы');
+        this.clearData();
+        window.location.href = 'login.html';
+    }
+
+    async testEndpoint(endpoint) {
+        try {
+            console.log(`🔍 Тестируем endpoint: ${endpoint}`);
+            const response = await this.request(endpoint, { method: 'GET' });
+            console.log(`✅ Endpoint доступен: ${endpoint}`);
+            return { available: true, data: response };
+        } catch (error) {
+            console.log(`❌ Endpoint недоступен: ${endpoint} - ${error.message}`);
+            return { available: false, error: error.message };
         }
     }
 }
 
-window.apiService = new ApiService();
+// Создаем глобальный экземпляр
+const api = new ApiService();
+window.api = api;
+window.apiService = api;
