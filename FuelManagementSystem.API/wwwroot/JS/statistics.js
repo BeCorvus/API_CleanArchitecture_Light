@@ -18,6 +18,33 @@ const chartColors = {
     }
 };
 
+// ✅ НОВАЯ ФУНКЦИЯ: Определяет, нужно ли скрывать ID столбцы для статистики
+function shouldHideIdColumnsForStats() {
+    const isAdmin = apiService.isAdmin();
+    return !isAdmin; // Скрываем ID для всех, кроме администраторов
+}
+
+// ✅ НОВАЯ ФУНКЦИЯ: Проверяет, содержит ли заголовок ID
+function isIdColumn(header) {
+    if (!header) return false;
+    const headerLower = header.toString().toLowerCase();
+    return headerLower.includes('id') &&
+        !headerLower.includes('idea') &&
+        !headerLower.includes('identity');
+}
+
+// ✅ ИНИЦИАЛИЗАЦИЯ СТРАНИЦЫ
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('📊 Инициализация страницы статистики...');
+    initializePage();
+});
+
+async function initializePage() {
+    await checkAuth();
+    initChart();
+    hideRestrictedTablesForManager();
+}
+
 function formatDisplayRole(role) {
     if (!role) {
         console.warn('⚠️ Роль пустая при форматировании');
@@ -40,14 +67,6 @@ function formatDisplayRole(role) {
 
     return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
-
-document.addEventListener('DOMContentLoaded', function () {
-    console.log('📊 Инициализация страницы статистики...');
-    checkAuth();
-    initChart();
-});
-
-// statistics.js - обновленная функция checkAuth()
 
 async function checkAuth() {
     console.log('🔐 Проверка авторизации для статистики...');
@@ -79,7 +98,6 @@ async function checkAuth() {
             userRoleElement.textContent = formatDisplayRole(userRole);
         }
 
-        // ✅ ИСПРАВЛЕНО: Используем метод canViewStatistics() из api.js
         const canViewStats = apiService.canViewStatistics();
 
         console.log('🔐 Результат проверки доступа:');
@@ -92,14 +110,47 @@ async function checkAuth() {
             alert('Доступ к статистике только для администраторов и менеджеров');
             window.location.href = 'index.html';
             return;
-        } else {
-            console.log('✅ Доступ разрешен: пользователь администратор или менеджер');
         }
     } else {
         console.warn('⚠️ Роль пользователя не определена');
         alert('Информация о роли пользователя не найдена');
         window.location.href = 'index.html';
     }
+}
+
+// ✅ ФУНКЦИЯ ДЛЯ ПОЛНОГО СКРЫТИЯ ТАБЛИЦ ДЛЯ МЕНЕДЖЕРОВ
+function hideRestrictedTablesForManager() {
+    console.log('🔒 Проверка прав для скрытия таблиц...');
+
+    setTimeout(() => {
+        const isAdmin = apiService.isAdmin();
+        const isManager = apiService.isManager();
+
+        console.log('📊 Статус пользователя:');
+        console.log('👑 Администратор?:', isAdmin);
+        console.log('👔 Менеджер?:', isManager);
+
+        const tableSelect = document.getElementById('statTableSelect');
+        if (!tableSelect) {
+            console.error('❌ Элемент выбора таблицы не найден');
+            return;
+        }
+
+        // ✅ Удаляем запрещенные опции для не-администраторов
+        if (!isAdmin) {
+            console.log('🚫 Не-администратору скрываем таблицы "Пользователи" и "Роли"');
+
+            for (let i = tableSelect.options.length - 1; i >= 0; i--) {
+                const option = tableSelect.options[i];
+                const value = option.value;
+
+                if (value === 'users' || value === 'roles') {
+                    console.log(`❌ Удаляем опцию: ${option.text} (${value})`);
+                    tableSelect.remove(i);
+                }
+            }
+        }
+    }, 100);
 }
 
 function logout() {
@@ -143,6 +194,22 @@ async function loadStatistics() {
         return;
     }
 
+    const isAdmin = apiService.isAdmin();
+    const selectedTable = tableSelect.value;
+
+    if (!isAdmin && (selectedTable === 'users' || selectedTable === 'roles')) {
+        console.log('🚫 Не-администратор пытается получить доступ к запрещенной таблице:', selectedTable);
+        noData.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <h3 style="color: #dc3545;">Доступ запрещен</h3>
+                <p>Доступ к статистике по таблице "${selectedTable}" ограничен.</p>
+                <p>Пожалуйста, выберите другую таблицу.</p>
+            </div>
+        `;
+        noData.style.display = 'block';
+        return;
+    }
+
     loading.classList.add('active');
     noData.style.display = 'none';
 
@@ -162,6 +229,13 @@ async function loadStatistics() {
 async function fetchChartData(tableName, chartType) {
     try {
         console.log(`📥 Загрузка данных для таблицы: ${tableName}`);
+
+        const isAdmin = apiService.isAdmin();
+
+        if (!isAdmin && (tableName === 'users' || tableName === 'roles')) {
+            throw new Error('Доступ к этой таблице запрещен для вашей роли');
+        }
+
         const data = await apiService.request(`/${tableName}`);
         return formatChartData(tableName, data, chartType);
     } catch (error) {
@@ -174,7 +248,9 @@ function formatChartData(tableName, data, chartType) {
     let chartData = {
         labels: [],
         data: [],
-        title: getChartTitle(tableName)
+        title: getChartTitle(tableName),
+        // ✅ ДОБАВЛЕНО: Сохраняем исходные данные для отображения в статистике
+        rawData: data
     };
 
     if (!data || !Array.isArray(data) || data.length === 0) {
@@ -188,8 +264,22 @@ function formatChartData(tableName, data, chartType) {
         case 'equipment':
             const brands = {};
             data.forEach(item => {
-                const brand = item.brand || 'Не указан';
-                brands[brand] = (brands[brand] || 0) + 1;
+                // ✅ ИСКЛЮЧАЕМ ID столбцы из статистики для не-администраторов
+                if (shouldHideIdColumnsForStats()) {
+                    // Удаляем ID поля из объекта
+                    const filteredItem = { ...item };
+                    Object.keys(filteredItem).forEach(key => {
+                        if (isIdColumn(key)) {
+                            delete filteredItem[key];
+                        }
+                    });
+                    // Используем отфильтрованный объект
+                    const brand = filteredItem.brand || 'Не указан';
+                    brands[brand] = (brands[brand] || 0) + 1;
+                } else {
+                    const brand = item.brand || 'Не указан';
+                    brands[brand] = (brands[brand] || 0) + 1;
+                }
             });
             chartData.labels = Object.keys(brands);
             chartData.data = Object.values(brands);
@@ -198,8 +288,19 @@ function formatChartData(tableName, data, chartType) {
         case 'fuel':
             const fuelBrands = {};
             data.forEach(item => {
-                const brand = item.brand || 'Не указан';
-                fuelBrands[brand] = (fuelBrands[brand] || 0) + 1;
+                if (shouldHideIdColumnsForStats()) {
+                    const filteredItem = { ...item };
+                    Object.keys(filteredItem).forEach(key => {
+                        if (isIdColumn(key)) {
+                            delete filteredItem[key];
+                        }
+                    });
+                    const brand = filteredItem.brand || 'Не указан';
+                    fuelBrands[brand] = (fuelBrands[brand] || 0) + 1;
+                } else {
+                    const brand = item.brand || 'Не указан';
+                    fuelBrands[brand] = (fuelBrands[brand] || 0) + 1;
+                }
             });
             chartData.labels = Object.keys(fuelBrands);
             chartData.data = Object.values(fuelBrands);
@@ -208,14 +309,35 @@ function formatChartData(tableName, data, chartType) {
         case 'geyser':
             const years = {};
             data.forEach(item => {
-                const year = item.yearOfRelease || 'Не указан';
-                years[year] = (years[year] || 0) + 1;
+                if (shouldHideIdColumnsForStats()) {
+                    const filteredItem = { ...item };
+                    Object.keys(filteredItem).forEach(key => {
+                        if (isIdColumn(key)) {
+                            delete filteredItem[key];
+                        }
+                    });
+                    const year = filteredItem.yearOfRelease || 'Не указан';
+                    years[year] = (years[year] || 0) + 1;
+                } else {
+                    const year = item.yearOfRelease || 'Не указан';
+                    years[year] = (years[year] || 0) + 1;
+                }
             });
             chartData.labels = Object.keys(years);
             chartData.data = Object.values(years);
             break;
 
         case 'users':
+            const isAdminForUsers = apiService.isAdmin();
+
+            if (!isAdminForUsers) {
+                console.log('🚫 Не-администратор пытается получить доступ к таблице пользователей');
+                chartData.labels = ['Доступ запрещен'];
+                chartData.data = [0];
+                chartData.title = 'Доступ к этой таблице ограничен';
+                break;
+            }
+
             const userRoles = {};
             data.forEach(item => {
                 const role = item.role || item.IdRoles || 'Не указана';
@@ -234,11 +356,25 @@ function formatChartData(tableName, data, chartType) {
             };
 
             data.forEach(item => {
-                const cost = item.cost || 0;
-                if (cost <= 5000) costGroups['До 5000 ₽']++;
-                else if (cost <= 10000) costGroups['5000-10000 ₽']++;
-                else if (cost <= 20000) costGroups['10000-20000 ₽']++;
-                else costGroups['Более 20000 ₽']++;
+                if (shouldHideIdColumnsForStats()) {
+                    const filteredItem = { ...item };
+                    Object.keys(filteredItem).forEach(key => {
+                        if (isIdColumn(key)) {
+                            delete filteredItem[key];
+                        }
+                    });
+                    const cost = filteredItem.cost || 0;
+                    if (cost <= 5000) costGroups['До 5000 ₽']++;
+                    else if (cost <= 10000) costGroups['5000-10000 ₽']++;
+                    else if (cost <= 20000) costGroups['10000-20000 ₽']++;
+                    else costGroups['Более 20000 ₽']++;
+                } else {
+                    const cost = item.cost || 0;
+                    if (cost <= 5000) costGroups['До 5000 ₽']++;
+                    else if (cost <= 10000) costGroups['5000-10000 ₽']++;
+                    else if (cost <= 20000) costGroups['10000-20000 ₽']++;
+                    else costGroups['Более 20000 ₽']++;
+                }
             });
 
             chartData.labels = Object.keys(costGroups);
@@ -246,6 +382,16 @@ function formatChartData(tableName, data, chartType) {
             break;
 
         case 'roles':
+            const isAdminForRoles = apiService.isAdmin();
+
+            if (!isAdminForRoles) {
+                console.log('🚫 Не-администратор пытается получить доступ к таблице ролей');
+                chartData.labels = ['Доступ запрещен'];
+                chartData.data = [0];
+                chartData.title = 'Доступ к этой таблице ограничен';
+                break;
+            }
+
             chartData.labels = data.map(role => role.name || 'Без названия');
             chartData.data = data.map(role => 1);
             break;
@@ -421,6 +567,7 @@ function showChartStats(chartData) {
     const max = data.length > 0 ? Math.max(...data) : 0;
     const min = data.length > 0 ? Math.min(...data) : 0;
 
+    // ✅ ДОБАВЛЕНО: Нумерация элементов в статистике
     statsContainer.innerHTML = `
         <div class="stat-card">
             <div class="stat-value">${total.toLocaleString()}</div>
@@ -437,6 +584,10 @@ function showChartStats(chartData) {
         <div class="stat-card">
             <div class="stat-value">${min}</div>
             <div class="stat-label">Минимум</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${data.length}</div>
+            <div class="stat-label">Уникальных категорий</div>
         </div>
     `;
 }

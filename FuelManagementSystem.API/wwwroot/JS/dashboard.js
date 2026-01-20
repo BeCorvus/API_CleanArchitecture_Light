@@ -14,6 +14,9 @@ function initDashboard() {
     console.log('✅ Дашборд инициализирован');
     clearTable();
 
+    // Обновляем список таблиц в зависимости от роли
+    updateTableSelectBasedOnRole();
+
     // Дополнительная проверка через 1 секунду
     setTimeout(() => {
         console.log('🔍 Дополнительная проверка прав доступа...');
@@ -63,6 +66,9 @@ async function checkAuth() {
         // Управление видимостью кнопки статистики
         manageStatisticsButton();
 
+        // Обновляем список таблиц в зависимости от роли
+        updateTableSelectBasedOnRole();
+
         // ✅ ДОБАВЛЕНО: Выводим информацию о доступе к статистике
         console.log('📊 Проверка доступа к статистике:');
         console.log('👑 Администратор?:', apiService.isAdmin());
@@ -73,6 +79,85 @@ async function checkAuth() {
         // Все равно проверяем кнопку
         manageStatisticsButton();
     }
+}
+
+// ✅ НОВАЯ ФУНКЦИЯ: Обновление списка таблиц в зависимости от роли
+function updateTableSelectBasedOnRole() {
+    const tableSelect = document.getElementById('tableSelect');
+    if (!tableSelect) {
+        console.error('❌ Элемент выбора таблицы не найден');
+        return;
+    }
+
+    const isAdmin = apiService.isAdmin();
+    console.log('🎭 Обновление списка таблиц для роли. Админ?:', isAdmin);
+
+    // Находим опции для таблиц пользователей и ролей
+    const options = tableSelect.options;
+
+    for (let i = 0; i < options.length; i++) {
+        const option = options[i];
+        const value = option.value;
+
+        // Скрываем/показываем опции в зависимости от роли
+        if (value === 'users' || value === 'roles') {
+            if (isAdmin) {
+                option.style.display = 'block';
+                option.disabled = false;
+                option.classList.remove('hidden');
+                console.log(`✅ Таблица "${option.text}" доступна для админа`);
+            } else {
+                option.style.display = 'none';
+                option.disabled = true;
+                option.classList.add('hidden');
+                console.log(`🚫 Таблица "${option.text}" скрыта для не-админа`);
+
+                // Если эта таблица была выбрана, сбрасываем выбор
+                if (tableSelect.value === value) {
+                    tableSelect.value = '';
+                    currentTable = '';
+                    clearTable();
+
+                    // Отключаем кнопку генерации
+                    const generateBtn = document.getElementById('generateBtn');
+                    if (generateBtn) {
+                        generateBtn.disabled = true;
+                    }
+
+                    showNotification('Доступ к этой таблице ограничен. Выберите другую таблицу.', 'warning');
+                }
+            }
+        }
+    }
+
+    // Если все опции скрыты, показываем сообщение
+    const visibleOptions = Array.from(options).filter(opt => opt.style.display !== 'none');
+    const noDataDiv = document.getElementById('noData');
+
+    if (visibleOptions.length === 0 && noDataDiv) {
+        noDataDiv.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <h3>Нет доступных таблиц</h3>
+                <p>У вашей роли нет прав доступа к таблицам.</p>
+                <p>Обратитесь к администратору.</p>
+            </div>
+        `;
+    }
+}
+
+// ✅ НОВАЯ ФУНКЦИЯ: Определяет, нужно ли скрывать ID столбцы
+function shouldHideIdColumns() {
+    const isAdmin = apiService.isAdmin();
+    return !isAdmin; // Скрываем ID для всех, кроме администраторов
+}
+
+// ✅ НОВАЯ ФУНКЦИЯ: Проверяет, содержит ли заголовок ID
+function isIdColumn(header) {
+    if (!header) return false;
+    const headerLower = header.toString().toLowerCase();
+    return headerLower.includes('id') &&
+        !headerLower.includes('idea') &&
+        !headerLower.includes('identity');
 }
 
 function manageStatisticsButton() {
@@ -348,14 +433,29 @@ function displayTableData(data) {
     const firstItem = data[0];
     const headers = Object.keys(firstItem);
 
+    // Список полей, которые нужно исключить всегда
     const excludedFields = ['dateOfRecording', 'dateOfChange', 'whoRecorded',
         'whoChanged', 'whenDeleted', 'passwordHash',
         'resetToken', 'resetTokenExpiry'];
-    const displayHeaders = headers.filter(header =>
+
+    let displayHeaders = headers.filter(header =>
         !excludedFields.includes(header.toLowerCase())
     );
 
+    // ✅ ДОБАВЛЕНО: Фильтрация ID столбцов для не-администраторов
+    if (shouldHideIdColumns()) {
+        console.log('🚫 Скрываем ID столбцы для не-администратора');
+        displayHeaders = displayHeaders.filter(header => !isIdColumn(header));
+    }
+
     const headerRow = document.createElement('tr');
+
+    // ✅ ДОБАВЛЕНО: Столбец с нумерацией
+    const numberTh = document.createElement('th');
+    numberTh.textContent = '№';
+    numberTh.style.width = '60px';
+    numberTh.style.textAlign = 'center';
+    headerRow.appendChild(numberTh);
 
     displayHeaders.forEach(header => {
         const th = document.createElement('th');
@@ -365,23 +465,42 @@ function displayTableData(data) {
 
     const actionsTh = document.createElement('th');
     actionsTh.textContent = 'Действия';
+    actionsTh.style.width = '100px';
+    actionsTh.style.textAlign = 'center';
     headerRow.appendChild(actionsTh);
 
     tableHeader.appendChild(headerRow);
 
-    data.forEach((row) => {
+    data.forEach((row, index) => {
         const tableRow = document.createElement('tr');
+
+        // ✅ ДОБАВЛЕНО: Ячейка с номером строки
+        const numberTd = document.createElement('td');
+        numberTd.textContent = index + 1;
+        numberTd.style.textAlign = 'center';
+        numberTd.style.fontWeight = 'bold';
+        numberTd.style.backgroundColor = '#f8f9fa';
+        tableRow.appendChild(numberTd);
 
         displayHeaders.forEach(header => {
             const td = document.createElement('td');
             let value = row[header];
             value = formatValue(value);
             td.textContent = value;
+
+            // ✅ ДОБАВЛЕНО: Специальное форматирование для ID столбцов (если они все же отображаются)
+            if (isIdColumn(header) && apiService.isAdmin()) {
+                td.style.fontFamily = 'monospace';
+                td.style.backgroundColor = '#f8f9fa';
+                td.style.fontWeight = 'bold';
+            }
+
             tableRow.appendChild(td);
         });
 
         const actionsTd = document.createElement('td');
         actionsTd.className = 'actions-cell';
+        actionsTd.style.textAlign = 'center';
 
         const viewBtn = document.createElement('button');
         viewBtn.className = 'action-btn view-btn';
@@ -491,7 +610,12 @@ function viewDetails(data, displayHeaders = null) {
     let html = '<h3>Подробная информация</h3>';
     html += '<div class="details-container">';
 
-    const fieldsToShow = displayHeaders || Object.keys(data);
+    let fieldsToShow = displayHeaders || Object.keys(data);
+
+    // ✅ ДОБАВЛЕНО: Фильтрация ID полей для не-администраторов в модальном окне
+    if (shouldHideIdColumns()) {
+        fieldsToShow = fieldsToShow.filter(header => !isIdColumn(header));
+    }
 
     fieldsToShow.forEach(key => {
         let value = data[key];
