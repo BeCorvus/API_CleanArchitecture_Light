@@ -81,6 +81,150 @@ async function checkAuth() {
     }
 }
 
+// ✅ ОБНОВЛЕННАЯ ФУНКЦИЯ: Определяет, какие поля нужно скрывать в зависимости от роли
+function getHiddenFieldsForRole() {
+    const isAdmin = apiService.isAdmin();
+
+    if (isAdmin) {
+        // ✅ Администратор видит все поля, кроме чувствительных
+        return ['passwordHash', 'resetToken', 'resetTokenExpiry'];
+    } else {
+        // ✅ Не-администраторы не видят ID поля и служебные поля
+        return [
+            'passwordHash', 'resetToken', 'resetTokenExpiry',
+            'dateOfRecording', 'dateOfChange', 'whoRecorded',
+            'whoChanged', 'whenDeleted',
+            'Date_of_recording', 'Date_of_change', 'Who_recorded',
+            'Who_changed', 'WhenDeleted',
+            'date_of_recording', 'date_of_change', 'who_recorded',
+            'who_changed', 'whendeleted'
+        ];
+    }
+}
+
+// ✅ ОБНОВЛЕННАЯ ФУНКЦИЯ: Определяет, нужно ли скрывать ID столбцы
+function shouldHideIdColumns() {
+    const isAdmin = apiService.isAdmin();
+    return !isAdmin; // Скрываем ID для всех, кроме администраторов
+}
+
+// ✅ ОБНОВЛЕННАЯ ФУНКЦИЯ: Проверяет, содержит ли заголовок ID
+function isIdColumn(header) {
+    if (!header) return false;
+    const headerLower = header.toString().toLowerCase();
+    return headerLower.includes('id') &&
+        !headerLower.includes('idea') &&
+        !headerLower.includes('identity');
+}
+
+// ✅ НОВАЯ ФУНКЦИЯ: Определяет, является ли поле служебным
+function isServiceColumn(header) {
+    if (!header) return false;
+    const headerLower = header.toString().toLowerCase();
+
+    // ✅ Проверяем различные варианты написания служебных полей
+    return headerLower.includes('dateofrecording') ||
+        headerLower.includes('date_of_recording') ||
+        headerLower.includes('dateofchange') ||
+        headerLower.includes('date_of_change') ||
+        headerLower.includes('whorecorded') ||
+        headerLower.includes('who_recorded') ||
+        headerLower.includes('whochanged') ||
+        headerLower.includes('who_changed') ||
+        headerLower.includes('whendeleted') ||
+        headerLower.includes('recordedby') ||
+        headerLower.includes('changedby') ||
+        headerLower.includes('createdby') ||
+        headerLower.includes('modifiedby') ||
+        headerLower.includes('createdat') ||
+        headerLower.includes('updatedat') ||
+        headerLower.includes('deletedat') ||
+        headerLower.includes('date') && headerLower.includes('record') ||
+        headerLower.includes('date') && headerLower.includes('change');
+}
+
+// ✅ НОВАЯ ФУНКЦИЯ: Сортируем заголовки в правильном порядке (служебные поля в конце)
+function sortHeadersForAdmin(headers) {
+    const isAdmin = apiService.isAdmin();
+
+    if (!isAdmin) {
+        return headers; // Для не-администраторов не сортируем
+    }
+
+    // ✅ Определяем порядок служебных полей
+    const serviceFieldOrder = [
+        // Основные служебные поля в нужном порядке
+        'Date_of_recording', 'date_of_recording', 'DateOfRecording', 'dateOfRecording',
+        'Date_of_change', 'date_of_change', 'DateOfChange', 'dateOfChange',
+        'Who_recorded', 'who_recorded', 'WhoRecorded', 'whoRecorded',
+        'Who_changed', 'who_changed', 'WhoChanged', 'whoChanged',
+        'WhenDeleted', 'whenDeleted', 'When_Deleted', 'when_deleted'
+    ];
+
+    // Разделяем заголовки на обычные и служебные
+    const regularHeaders = [];
+    const serviceHeaders = [];
+
+    headers.forEach(header => {
+        // Проверяем, является ли поле служебным
+        let isService = false;
+
+        // Проверяем точное соответствие с учетом регистра
+        if (serviceFieldOrder.includes(header)) {
+            isService = true;
+        } else {
+            // Проверяем по нижнему регистру
+            const headerLower = header.toLowerCase();
+            isService = serviceFieldOrder.some(serviceField =>
+                serviceField.toLowerCase() === headerLower
+            );
+        }
+
+        // Также проверяем через функцию isServiceColumn
+        if (!isService && isServiceColumn(header)) {
+            isService = true;
+        }
+
+        if (isService) {
+            serviceHeaders.push(header);
+        } else {
+            regularHeaders.push(header);
+        }
+    });
+
+    // Сортируем служебные поля в заданном порядке
+    const sortedServiceHeaders = [];
+
+    // Добавляем в порядке, определенном в serviceFieldOrder
+    serviceFieldOrder.forEach(orderedField => {
+        // Ищем точное совпадение
+        const exactMatch = serviceHeaders.find(header => header === orderedField);
+        if (exactMatch && !sortedServiceHeaders.includes(exactMatch)) {
+            sortedServiceHeaders.push(exactMatch);
+        }
+
+        // Ищем совпадение без учета регистра
+        const orderedFieldLower = orderedField.toLowerCase();
+        const caseInsensitiveMatch = serviceHeaders.find(header =>
+            header.toLowerCase() === orderedFieldLower &&
+            !sortedServiceHeaders.includes(header)
+        );
+        if (caseInsensitiveMatch) {
+            sortedServiceHeaders.push(caseInsensitiveMatch);
+        }
+    });
+
+    // Добавляем оставшиеся служебные поля
+    serviceHeaders.forEach(header => {
+        if (!sortedServiceHeaders.includes(header)) {
+            sortedServiceHeaders.push(header);
+        }
+    });
+
+    // Объединяем: сначала обычные поля, затем служебные
+    return [...regularHeaders, ...sortedServiceHeaders];
+}
+
 // ✅ НОВАЯ ФУНКЦИЯ: Обновление списка таблиц в зависимости от роли
 function updateTableSelectBasedOnRole() {
     const tableSelect = document.getElementById('tableSelect');
@@ -145,21 +289,6 @@ function updateTableSelectBasedOnRole() {
     }
 }
 
-// ✅ НОВАЯ ФУНКЦИЯ: Определяет, нужно ли скрывать ID столбцы
-function shouldHideIdColumns() {
-    const isAdmin = apiService.isAdmin();
-    return !isAdmin; // Скрываем ID для всех, кроме администраторов
-}
-
-// ✅ НОВАЯ ФУНКЦИЯ: Проверяет, содержит ли заголовок ID
-function isIdColumn(header) {
-    if (!header) return false;
-    const headerLower = header.toString().toLowerCase();
-    return headerLower.includes('id') &&
-        !headerLower.includes('idea') &&
-        !headerLower.includes('identity');
-}
-
 function manageStatisticsButton() {
     const statsBtn = document.getElementById('statisticsBtn');
     if (!statsBtn) {
@@ -170,7 +299,7 @@ function manageStatisticsButton() {
     // ✅ Используем метод canViewStatistics() из api.js
     const canViewStats = apiService.canViewStatistics();
 
-    console.log('📊 Управление кнопкой статистики:');
+    console.log('📊 Управление кнопки статистики:');
     console.log('👑 Администратор?:', apiService.isAdmin());
     console.log('👔 Менеджер?:', apiService.isManager());
     console.log('✅ Может просматривать статистику?:', canViewStats);
@@ -433,13 +562,12 @@ function displayTableData(data) {
     const firstItem = data[0];
     const headers = Object.keys(firstItem);
 
-    // Список полей, которые нужно исключить всегда
-    const excludedFields = ['dateOfRecording', 'dateOfChange', 'whoRecorded',
-        'whoChanged', 'whenDeleted', 'passwordHash',
-        'resetToken', 'resetTokenExpiry'];
+    // ✅ ОБНОВЛЕНО: Используем динамический список исключаемых полей
+    const hiddenFields = getHiddenFieldsForRole();
 
+    // Сначала фильтруем скрытые поля
     let displayHeaders = headers.filter(header =>
-        !excludedFields.includes(header.toLowerCase())
+        !hiddenFields.includes(header.toLowerCase())
     );
 
     // ✅ ДОБАВЛЕНО: Фильтрация ID столбцов для не-администраторов
@@ -447,6 +575,9 @@ function displayTableData(data) {
         console.log('🚫 Скрываем ID столбцы для не-администратора');
         displayHeaders = displayHeaders.filter(header => !isIdColumn(header));
     }
+
+    // ✅ ВАЖНО: Для администратора сортируем заголовки - служебные поля в конце
+    displayHeaders = sortHeadersForAdmin(displayHeaders);
 
     const headerRow = document.createElement('tr');
 
@@ -460,6 +591,14 @@ function displayTableData(data) {
     displayHeaders.forEach(header => {
         const th = document.createElement('th');
         th.textContent = formatHeader(header);
+
+        // ✅ ДОБАВЛЕНО: Добавляем классы для служебных полей администратора
+        if (apiService.isAdmin() && isServiceColumn(header)) {
+            th.classList.add('admin-service-header');
+            th.style.backgroundColor = '#e8f5e9';
+            th.style.borderLeft = '2px solid #4caf50';
+        }
+
         headerRow.appendChild(th);
     });
 
@@ -488,11 +627,40 @@ function displayTableData(data) {
             value = formatValue(value);
             td.textContent = value;
 
-            // ✅ ДОБАВЛЕНО: Специальное форматирование для ID столбцов (если они все же отображаются)
-            if (isIdColumn(header) && apiService.isAdmin()) {
-                td.style.fontFamily = 'monospace';
-                td.style.backgroundColor = '#f8f9fa';
-                td.style.fontWeight = 'bold';
+            // ✅ ДОБАВЛЕНО: Специальное форматирование для служебных полей администратора
+            if (apiService.isAdmin()) {
+                const lowerHeader = header.toLowerCase();
+                if (isServiceColumn(header)) {
+                    // ✅ Служебные поля дат
+                    if (lowerHeader.includes('date') || lowerHeader.includes('time')) {
+                        td.classList.add('admin-service-field-date');
+                        td.style.fontFamily = 'monospace';
+                        td.style.fontSize = '12px';
+                        td.style.color = '#0066cc';
+                        td.style.backgroundColor = '#f0f8ff';
+                    }
+                    // ✅ Служебные поля "кто"
+                    else if (lowerHeader.includes('who') || lowerHeader.includes('by')) {
+                        td.classList.add('admin-service-field-user');
+                        td.style.fontStyle = 'italic';
+                        td.style.color = '#666';
+                        td.style.backgroundColor = '#f9f9f9';
+                    }
+                    // ✅ Остальные служебные поля
+                    else {
+                        td.classList.add('admin-service-field');
+                        td.style.fontFamily = 'monospace';
+                        td.style.fontSize = '11px';
+                        td.style.color = '#0066cc';
+                    }
+                }
+                // ✅ ID поля
+                else if (isIdColumn(header)) {
+                    td.style.fontFamily = 'monospace';
+                    td.style.backgroundColor = '#fff0f0';
+                    td.style.fontWeight = 'bold';
+                    td.style.color = '#990000';
+                }
             }
 
             tableRow.appendChild(td);
@@ -536,7 +704,7 @@ function formatValue(value) {
             try {
                 const date = new Date(value);
                 if (!isNaN(date.getTime())) {
-                    return date.toLocaleDateString('ru-RU');
+                    return date.toLocaleDateString('ru-RU') + ' ' + date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
                 }
             } catch (e) {
                 // Не удалось распарсить как дату
@@ -589,14 +757,45 @@ function formatHeader(header) {
         'description': 'Описание',
         'createddate': 'Дата создания',
         'modifieddate': 'Дата изменения',
-        'isactive': 'Активен'
+        'isactive': 'Активен',
+        // ✅ ДОБАВЛЕНО: Переводы для служебных полей с разными вариантами написания
+        'dateofrecording': 'Дата записи',
+        'date_of_recording': 'Дата записи',
+        'Date_of_recording': 'Дата записи',
+        'dateofchange': 'Дата изменения',
+        'date_of_change': 'Дата изменения',
+        'Date_of_change': 'Дата изменения',
+        'whorecorded': 'Кто записал',
+        'who_recorded': 'Кто записал',
+        'Who_recorded': 'Кто записал',
+        'whochanged': 'Кто изменил',
+        'who_changed': 'Кто изменил',
+        'Who_changed': 'Кто изменил',
+        'whendeleted': 'Когда удалено',
+        'WhenDeleted': 'Когда удалено',
+        'recordedby': 'Записано',
+        'changedby': 'Изменено',
+        'createdby': 'Создано',
+        'modifiedby': 'Изменено',
+        'deletedby': 'Удалено',
+        'createdat': 'Создано',
+        'updatedat': 'Обновлено',
+        'deletedat': 'Удалено'
     };
 
     const lowerHeader = header.toLowerCase();
+
+    // Сначала ищем точное совпадение (с учетом регистра)
+    if (translations[header]) {
+        return translations[header];
+    }
+
+    // Затем ищем совпадение в нижнем регистре
     if (translations[lowerHeader]) {
         return translations[lowerHeader];
     }
 
+    // Форматируем заголовок, если не нашли перевод
     const words = header.replace(/([A-Z])/g, ' $1').trim().split(' ');
     return words.map(word =>
         word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
@@ -612,19 +811,37 @@ function viewDetails(data, displayHeaders = null) {
 
     let fieldsToShow = displayHeaders || Object.keys(data);
 
+    // ✅ ОБНОВЛЕНО: Используем динамический список исключаемых полей
+    const hiddenFields = getHiddenFieldsForRole();
+    fieldsToShow = fieldsToShow.filter(header =>
+        !hiddenFields.includes(header.toLowerCase())
+    );
+
     // ✅ ДОБАВЛЕНО: Фильтрация ID полей для не-администраторов в модальном окне
     if (shouldHideIdColumns()) {
         fieldsToShow = fieldsToShow.filter(header => !isIdColumn(header));
+    }
+
+    // ✅ ДОБАВЛЕНО: Для администратора сортируем служебные поля в конце
+    if (apiService.isAdmin()) {
+        fieldsToShow = sortHeadersForAdmin(fieldsToShow);
     }
 
     fieldsToShow.forEach(key => {
         let value = data[key];
         value = formatValue(value);
 
+        const isService = apiService.isAdmin() && isServiceColumn(key);
+        const isId = apiService.isAdmin() && isIdColumn(key);
+
         html += `
             <div class="detail-row">
-                <span class="detail-label">${formatHeader(key)}:</span>
-                <span class="detail-value">${value}</span>
+                <span class="detail-label ${isService || isId ? 'admin-label' : ''}">
+                    ${isService ? '🔧 ' : ''}${isId ? '🆔 ' : ''}${formatHeader(key)}:
+                </span>
+                <span class="detail-value ${isService || isId ? 'admin-value' : ''}">
+                    ${value}
+                </span>
             </div>
         `;
     });

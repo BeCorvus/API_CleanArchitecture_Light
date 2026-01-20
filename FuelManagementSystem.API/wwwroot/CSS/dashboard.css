@@ -677,3 +677,88 @@
         min-width: 40px;
     }
 }
+
+/* ✅ ДОБАВЛЕНО: Стили для служебных полей администратора */
+.admin-service-field {
+    font-family: 'Courier New', monospace !important;
+    font-size: 12px !important;
+    color: #0066cc !important;
+    background-color: #f0f8ff !important;
+}
+
+.admin-service-field-date {
+    font-family: 'Courier New', monospace !important;
+    font-size: 11px !important;
+    color: #008800 !important;
+    background-color: #f0fff0 !important;
+}
+
+.admin-service-field-user {
+    font-style: italic !important;
+    color: #666666 !important;
+    background-color: #f9f9f9 !important;
+}
+
+/* ✅ ДОБАВЛЕНО: Стили для ID полей администратора */
+.admin-id-field {
+    font-family: 'Courier New', monospace !important;
+    font-weight: bold !important;
+    color: #990000 !important;
+    background-color: #fff0f0 !important;
+}
+
+/* ✅ ДОБАВЛЕНО: Подсветка служебных полей в таблице для администратора */
+.data-table tr:hover .admin-service-field,
+.data-table tr:hover .admin-service-field-date,
+.data-table tr:hover .admin-service-field-user,
+.data-table tr:hover .admin-id-field {
+    opacity: 0.9;
+    transition: all 0.3s ease;
+}
+
+/* ✅ ДОБАВЛЕНО: Стили для служебных записей в модальном окне */
+.detail-row .detail-label.admin-label {
+    color: #0066cc;
+    font-weight: bold;
+    border-left: 3px solid #0066cc;
+    padding-left: 10px;
+}
+
+.detail-row .detail-value.admin-value {
+    font-family: 'Courier New', monospace;
+    background-color: #f0f8ff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid #cce0ff;
+}
+
+/* ✅ ДОБАВЛЕНО: Индикатор административных полей в таблице */
+.admin-field-indicator {
+    position: relative;
+}
+
+    .admin-field-indicator::before {
+        content: "👑";
+        position: absolute;
+        left: -20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        opacity: 0.7;
+    }
+
+/* ✅ ДОБАВЛЕНО: Адаптивные стили для административных полей */
+@media (max-width: 768px) {
+    .admin-service-field,
+    .admin-service-field-date,
+    .admin-service-field-user,
+    .admin-id-field {
+        font-size: 10px !important;
+        padding: 5px !important;
+    }
+
+    .admin-field-indicator::before {
+        left: -15px;
+        font-size: 8px;
+    }
+}
