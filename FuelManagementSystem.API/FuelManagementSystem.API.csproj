@@ -8,6 +8,7 @@
 
 	<ItemGroup>
 	  <_ContentIncludedByDefault Remove="wwwroot\index.html" />
+	  <_ContentIncludedByDefault Remove="wwwroot\statistics.html" />
 	</ItemGroup>
 
 	<ItemGroup>

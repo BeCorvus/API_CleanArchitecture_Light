@@ -14,11 +14,19 @@ namespace FuelManagementSystem.API.Controllers
     {
         private readonly IUserRepository _userRepository;
         private readonly IPasswordService _passwordService;
+        private readonly IUserRoleService _userRoleService;
+        private readonly IRoleRepository _roleRepository;
 
-        public UserController(IUserRepository userRepository, IPasswordService passwordService)
+        public UserController(
+            IUserRepository userRepository,
+            IPasswordService passwordService,
+            IUserRoleService userRoleService,
+            IRoleRepository roleRepository)
         {
             _userRepository = userRepository;
             _passwordService = passwordService;
+            _userRoleService = userRoleService;
+            _roleRepository = roleRepository;
         }
 
         // GET: api/user
@@ -28,13 +36,20 @@ namespace FuelManagementSystem.API.Controllers
         {
             var users = await _userRepository.GetAllActiveAsync();
 
-            var userDtos = users.Select(u => new UserDto
+            var userDtos = new List<UserDto>();
+            foreach (var user in users)
             {
-                Id = u.IdUsers,
-                Email = u.Email,
-                Login = u.Login,
-                Note = u.Note
-            });
+                var roleName = await _userRoleService.GetUserRoleNameAsync(user.IdUsers);
+
+                userDtos.Add(new UserDto
+                {
+                    Id = user.IdUsers,
+                    Email = user.Email,
+                    Login = user.Login,
+                    Note = user.Note,
+                    Role = roleName // ✅ ДОБАВЛЕНО ПОЛЕ РОЛИ
+                });
+            }
 
             return Ok(userDtos);
         }
@@ -51,12 +66,15 @@ namespace FuelManagementSystem.API.Controllers
                 return NotFound();
             }
 
+            var roleName = await _userRoleService.GetUserRoleNameAsync(id);
+
             var userDto = new UserDto
             {
                 Id = user.IdUsers,
                 Email = user.Email,
                 Login = user.Login,
-                Note = user.Note
+                Note = user.Note,
+                Role = roleName // ✅ ДОБАВЛЕНО ПОЛЕ РОЛИ
             };
 
             return Ok(userDto);
@@ -65,7 +83,7 @@ namespace FuelManagementSystem.API.Controllers
         // GET: api/user/email/{email}
         [Authorize]
         [HttpGet("email/{email}")]
-        public async Task<ActionResult<UserDto>> GetUserByEmail(string email) // Изменен возвращаемый тип
+        public async Task<ActionResult<UserDto>> GetUserByEmail(string email)
         {
             var user = await _userRepository.GetByEmailAsync(email);
 
@@ -74,12 +92,15 @@ namespace FuelManagementSystem.API.Controllers
                 return NotFound();
             }
 
+            var roleName = await _userRoleService.GetUserRoleNameAsync(user.IdUsers);
+
             var userDto = new UserDto
             {
                 Id = user.IdUsers,
                 Email = user.Email,
                 Login = user.Login,
-                Note = user.Note
+                Note = user.Note,
+                Role = roleName // ✅ ДОБАВЛЕНО ПОЛЕ РОЛИ
             };
 
             return Ok(userDto);
@@ -88,7 +109,7 @@ namespace FuelManagementSystem.API.Controllers
         // GET: api/user/login/{login}
         [Authorize]
         [HttpGet("login/{login}")]
-        public async Task<ActionResult<UserDto>> GetUserByLogin(string login) // Изменен возвращаемый тип
+        public async Task<ActionResult<UserDto>> GetUserByLogin(string login)
         {
             var user = await _userRepository.GetByLoginAsync(login);
 
@@ -97,12 +118,15 @@ namespace FuelManagementSystem.API.Controllers
                 return NotFound();
             }
 
+            var roleName = await _userRoleService.GetUserRoleNameAsync(user.IdUsers);
+
             var userDto = new UserDto
             {
                 Id = user.IdUsers,
                 Email = user.Email,
                 Login = user.Login,
-                Note = user.Note
+                Note = user.Note,
+                Role = roleName // ✅ ДОБАВЛЕНО ПОЛЕ РОЛИ
             };
 
             return Ok(userDto);
@@ -115,23 +139,31 @@ namespace FuelManagementSystem.API.Controllers
         {
             var users = await _userRepository.GetAllAsync();
 
-            var userAdminDtos = users.Select(u => new UserAdminDto
+            var userAdminDtos = new List<UserAdminDto>();
+            foreach (var user in users)
             {
-                Id = u.IdUsers,
-                Email = u.Email,
-                Login = u.Login,
-                Note = u.Note,
-                DateOfRecording = u.DateOfRecording,
-                DateOfChange = u.DateOfChange,
-                WhoRecorded = u.WhoRecorded,
-                WhoChanged = u.WhoChanged,
-                WhenDeleted = u.WhenDeleted
-            });
+                var roleName = await _userRoleService.GetUserRoleNameAsync(user.IdUsers);
+
+                userAdminDtos.Add(new UserAdminDto
+                {
+                    Id = user.IdUsers,
+                    Email = user.Email,
+                    Login = user.Login,
+                    Note = user.Note,
+                    DateOfRecording = user.DateOfRecording,
+                    DateOfChange = user.DateOfChange,
+                    WhoRecorded = user.WhoRecorded,
+                    WhoChanged = user.WhoChanged,
+                    WhenDeleted = user.WhenDeleted,
+                    RoleName = roleName
+                });
+            }
 
             return Ok(userAdminDtos);
         }
 
         // POST: api/user
+        [AllowAnonymous]
         [HttpPost]
         public async Task<ActionResult<UserDto>> CreateUser(CreateUserDto createDto)
         {
@@ -160,18 +192,25 @@ namespace FuelManagementSystem.API.Controllers
 
             await _userRepository.AddAsync(user);
 
+            // АВТОМАТИЧЕСКОЕ НАЗНАЧЕНИЕ РОЛИ "user" ПОСЛЕ СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ
+            await _userRoleService.AssignDefaultRoleToUserAsync(user.IdUsers, "System");
+
+            var roleName = await _userRoleService.GetUserRoleNameAsync(user.IdUsers);
+
             var userDto = new UserDto
             {
                 Id = user.IdUsers,
                 Email = user.Email,
                 Login = user.Login,
-                Note = user.Note
+                Note = user.Note,
+                Role = roleName // ✅ ДОБАВЛЕНО ПОЛЕ РОЛИ
             };
 
             return CreatedAtAction(nameof(GetUserById), new { id = user.IdUsers }, userDto);
         }
 
         // PUT: api/user/{id}
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, UpdateUserDto updateDto)
         {
@@ -225,6 +264,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // PATCH: api/user/change-password/{id}
+        [Authorize]
         [HttpPatch("change-password/{id}")]
         public async Task<IActionResult> ChangePassword(int id, ChangePasswordDto changePasswordDto)
         {
@@ -256,6 +296,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // DELETE: api/user/{id} (Soft Delete)
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> SoftDeleteUser(int id)
         {
@@ -272,6 +313,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // PATCH: api/user/restore/{id}
+        [Authorize]
         [HttpPatch("restore/{id}")]
         public async Task<IActionResult> RestoreUser(int id)
         {
@@ -293,6 +335,7 @@ namespace FuelManagementSystem.API.Controllers
         }
 
         // GET: api/user/admin/{id}
+        [Authorize]
         [HttpGet("admin/{id}")]
         public async Task<ActionResult<UserAdminDto>> GetUserByIdForAdmin(int id)
         {
@@ -302,6 +345,8 @@ namespace FuelManagementSystem.API.Controllers
             {
                 return NotFound();
             }
+
+            var roleName = await _userRoleService.GetUserRoleNameAsync(id);
 
             var userAdminDto = new UserAdminDto
             {
@@ -313,14 +358,111 @@ namespace FuelManagementSystem.API.Controllers
                 DateOfChange = user.DateOfChange,
                 WhoRecorded = user.WhoRecorded,
                 WhoChanged = user.WhoChanged,
-                WhenDeleted = user.WhenDeleted
+                WhenDeleted = user.WhenDeleted,
+                RoleName = roleName
             };
 
             return Ok(userAdminDto);
         }
 
+        // GET: api/user/with-roles
+        [Authorize]
+        [HttpGet("with-roles")]
+        public async Task<ActionResult<IEnumerable<UserWithRoleDto>>> GetUsersWithRoles()
+        {
+            var usersWithRoles = await _userRoleService.GetUsersWithRolesAsync();
+            return Ok(usersWithRoles);
+        }
+
+        // GET: api/user/{id}/with-role
+        [Authorize]
+        [HttpGet("{id}/with-role")]
+        public async Task<ActionResult<UserWithRoleDto>> GetUserWithRole(int id)
+        {
+            var userWithRole = await _userRoleService.GetUserWithRoleAsync(id);
+
+            if (userWithRole == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(userWithRole);
+        }
+
+        // GET: api/user/{id}/role
+        [Authorize]
+        [HttpGet("{id}/role")]
+        public async Task<ActionResult> GetUserRole(int id)
+        {
+            var roleName = await _userRoleService.GetUserRoleNameAsync(id);
+            var roleId = await _userRoleService.GetUserRoleIdAsync(id);
+
+            return Ok(new
+            {
+                RoleName = roleName,
+                RoleId = roleId
+            });
+        }
+
+        // PUT: api/user/{id}/role (только для админов)
+        [Authorize(Roles = "admin")]
+        [HttpPut("{id}/role")]
+        public async Task<IActionResult> ChangeUserRole(int id, ChangeUserRoleDto changeRoleDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            // Проверяем, существует ли роль
+            var role = await _roleRepository.GetActiveByIdAsync(changeRoleDto.RoleId);
+            if (role == null)
+            {
+                return BadRequest("Role not found");
+            }
+
+            // Получаем текущего пользователя (админа) из контекста
+            var currentUserLogin = User.Identity?.Name ?? "System";
+
+            var result = await _userRoleService.UpdateUserRoleAsync(id, changeRoleDto.RoleId, currentUserLogin);
+
+            if (!result)
+            {
+                return BadRequest("Failed to update user role");
+            }
+
+            return Ok(new { Message = "User role updated successfully" });
+        }
+
+        // DELETE: api/user/{userId}/role/{roleId} (только для админов)
+        [Authorize(Roles = "admin")]
+        [HttpDelete("{userId}/role/{roleId}")]
+        public async Task<IActionResult> RemoveUserRole(int userId, int roleId)
+        {
+            // Получаем текущего пользователя (админа) из контекста
+            var currentUserLogin = User.Identity?.Name ?? "System";
+
+            var result = await _userRoleService.RemoveUserFromRoleAsync(userId, roleId, currentUserLogin);
+
+            if (!result)
+            {
+                return BadRequest("Failed to remove role from user");
+            }
+
+            return Ok(new { Message = "Role removed from user successfully" });
+        }
+
+        // GET: api/user/{id}/is-admin
+        [Authorize]
+        [HttpGet("{id}/is-admin")]
+        public async Task<ActionResult> IsUserAdmin(int id)
+        {
+            var isAdmin = await _userRoleService.IsUserAdminAsync(id);
+            return Ok(new { IsAdmin = isAdmin });
+        }
+
         // Добавляем метод для проверки доступности email/login
-        [AllowAnonymous] // Этот метод должен быть доступен без авторизации
+        [AllowAnonymous]
         [HttpPost("check-availability")]
         public async Task<ActionResult> CheckAvailability(CheckAvailabilityDto checkDto)
         {
@@ -346,5 +488,15 @@ namespace FuelManagementSystem.API.Controllers
     {
         public string Email { get; set; }
         public string Login { get; set; }
+    }
+
+    // DTO для изменения роли пользователя
+    public class ChangeUserRoleDto
+    {
+        [Required(ErrorMessage = "Role ID is required")]
+        [Range(1, int.MaxValue, ErrorMessage = "Invalid role ID")]
+        public int RoleId { get; set; }
+
+        public string? Note { get; set; }
     }
 }

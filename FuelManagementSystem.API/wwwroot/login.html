@@ -3,27 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Авторизация</title>
+    <title>Система заправки - Авторизация</title>
+    <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/loginStyle.css">
 </head>
 <body>
-    <script>
-        // Проверка, если пользователь уже авторизован - перенаправляем на dashboard
-        document.addEventListener('DOMContentLoaded', function () {
-            const token = localStorage.getItem('authToken');
-            if (token) {
-                window.location.href = 'index.html';
-            }
-        });
-    </script>
     <div class="login-container">
-        <h1 class="login-title">Система доступа</h1>
+        <h1 class="system-title">Система доступа</h1>
 
-        <!-- Переключатель форм -->
         <div class="form-tabs">
-            <button class="tab-btn active" data-tab="login">Вход</button>
-            <button class="tab-btn" data-tab="register">Регистрация</button>
-            <button class="tab-btn" data-tab="forgot">Забыли пароль?</button>
+            <button class="tab-btn active" onclick="showTab('login')">Вход</button>
+            <button class="tab-btn" onclick="showTab('register')">Регистрация</button>
         </div>
 
         <!-- Сообщения -->
@@ -32,8 +22,8 @@
         <!-- Форма входа -->
         <form id="loginForm" class="auth-form active">
             <div class="form-group">
-                <label for="loginUsername">Имя пользователя или Email</label>
-                <input type="text" id="loginUsername" class="form-control" placeholder="Введите имя пользователя или email" required>
+                <label for="loginInput">Логин или Email</label>
+                <input type="text" id="loginInput" class="form-control" placeholder="Введите логин или email" required>
             </div>
 
             <div class="form-group">
@@ -44,28 +34,28 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn">Войти</button>
+            <button type="submit" class="btn btn-primary">Войти</button>
 
-            <div class="links">
-                <a onclick="showTab('forgot')">Забыли пароль?</a> |
-                <a onclick="showTab('register')">Создать аккаунт</a>
+            <div class="form-footer">
+                <a href="#" onclick="showTab('register')">Создать аккаунт</a>
             </div>
         </form>
 
         <!-- Форма регистрации -->
         <form id="registerForm" class="auth-form">
             <div class="form-group">
-                <label for="regUsername">Имя пользователя</label>
-                <input type="text" id="regUsername" class="form-control" placeholder="Придумайте имя пользователя" required>
+                <label for="regUsername">Логин *</label>
+                <input type="text" id="regUsername" class="form-control" placeholder="Придумайте логин" required>
+                <small class="form-text">Будет использоваться для входа в систему</small>
             </div>
 
             <div class="form-group">
-                <label for="regEmail">Email</label>
+                <label for="regEmail">Email *</label>
                 <input type="email" id="regEmail" class="form-control" placeholder="Введите ваш email" required>
             </div>
 
             <div class="form-group">
-                <label for="regPassword">Пароль</label>
+                <label for="regPassword">Пароль *</label>
                 <div class="password-container">
                     <input type="password" id="regPassword" class="form-control" placeholder="Придумайте пароль" required oninput="checkPasswordStrength()">
                     <span class="toggle-password" onclick="togglePassword('regPassword')">👁️</span>
@@ -76,37 +66,27 @@
             </div>
 
             <div class="form-group">
-                <label for="regConfirmPassword">Подтверждение пароля</label>
+                <label for="regConfirmPassword">Подтверждение пароля *</label>
                 <div class="password-container">
                     <input type="password" id="regConfirmPassword" class="form-control" placeholder="Повторите пароль" required>
                     <span class="toggle-password" onclick="togglePassword('regConfirmPassword')">👁️</span>
                 </div>
             </div>
 
-            <button type="submit" class="btn">Зарегистрироваться</button>
-
-            <div class="links">
-                Уже есть аккаунт? <a onclick="showTab('login')">Войти</a>
-            </div>
-        </form>
-
-        <!-- Форма восстановления пароля -->
-        <form id="forgotForm" class="auth-form">
             <div class="form-group">
-                <label for="forgotEmail">Email</label>
-                <input type="email" id="forgotEmail" class="form-control" placeholder="Введите email вашего аккаунта" required>
+                <label for="regNote">Примечание (необязательно)</label>
+                <textarea id="regNote" class="form-control" rows="3" placeholder="Дополнительная информация"></textarea>
             </div>
 
-            <button type="submit" class="btn">Восстановить пароль</button>
+            <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
 
-            <div class="links">
-                <a onclick="showTab('login')">Вернуться к входу</a>
+            <div class="form-footer">
+                Уже есть аккаунт? <a href="#" onclick="showTab('login')">Войти</a>
             </div>
         </form>
     </div>
 
-    <script src="JS/api.js"></script>
-    <script src="JS/script.js"></script>
-    <script src="JS/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
 </body>
 </html>

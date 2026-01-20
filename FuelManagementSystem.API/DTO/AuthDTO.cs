@@ -6,7 +6,7 @@ namespace FuelManagementSystem.API.DTO
     {
         [Required(ErrorMessage = "Email или имя пользователя обязательно")]
         [Display(Name = "Логин")]
-        public string Login { get; set; } = string.Empty; // Единое поле для email/username
+        public string Login { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Пароль обязателен")]
         [DataType(DataType.Password)]
@@ -15,45 +15,64 @@ namespace FuelManagementSystem.API.DTO
 
     public class RegisterDto
     {
-        public string Email { get; set; }
-        public string Login { get; set; }
-        public string Password { get; set; }
-        public string ConfirmPassword { get; set; }
-        public string Note { get; set; }
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Login is required")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "Login must be between 3 and 50 characters")]
+        public string Login { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Confirm password is required")]
+        [Compare("Password", ErrorMessage = "Password and confirmation password do not match")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        public string? Note { get; set; }
     }
 
     public class AuthResponseDto
     {
-        public string Token { get; set; }
+        public string Token { get; set; } = string.Empty;
         public DateTime Expiration { get; set; }
-        public UserDto User { get; set; }
+        public UserDto User { get; set; } = null!;
     }
 
     public class ChangePasswordDto
     {
-        public string CurrentPassword { get; set; }
-        public string NewPassword { get; set; }
-        public string ConfirmNewPassword { get; set; }
+        [Required(ErrorMessage = "Current password is required")]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "New password is required")]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "New password must be at least 6 characters")]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Confirm new password is required")]
+        [Compare("NewPassword", ErrorMessage = "New password and confirmation password do not match")]
+        public string ConfirmNewPassword { get; set; } = string.Empty;
     }
 
     public class ForgotPasswordDto
     {
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; }
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = string.Empty;
     }
 
     public class ResetPasswordDto
     {
-        [Required]
-        public string Token { get; set; }
+        [Required(ErrorMessage = "Token is required")]
+        public string Token { get; set; } = string.Empty;
 
-        [Required]
+        [Required(ErrorMessage = "New password is required")]
         [MinLength(6, ErrorMessage = "Password must be at least 6 characters long")]
-        public string NewPassword { get; set; }
+        public string NewPassword { get; set; } = string.Empty;
 
-        [Required]
+        [Required(ErrorMessage = "Confirm new password is required")]
         [Compare("NewPassword", ErrorMessage = "Passwords do not match")]
-        public string ConfirmNewPassword { get; set; }
+        public string ConfirmNewPassword { get; set; } = string.Empty;
     }
 }

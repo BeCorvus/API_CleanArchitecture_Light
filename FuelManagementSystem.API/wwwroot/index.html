@@ -3,93 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fuel Management System</title>
-    <link rel="stylesheet" href="css/indexStyle.css">
+    <title>Система заправки - Панель управления</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                window.location.href = 'login.html';
-            }
-        });
-    </script>
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Система управления топливом</h1>
-            <div class="user-info">
-                <span id="userBtn">Пользователь</span>
-                <button class="crud-btn logout-btn" onclick="logout()">Выйти</button>
+    <div class="dashboard-container">
+        <!-- Шапка -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1 class="system-title">Система заправки</h1>
+                <div class="user-info">
+                    <span class="user-name" id="userName">[Имя пользователя]</span>
+                    <span class="user-role" id="userRole">[Роль]</span>
+                </div>
             </div>
-        </div>
 
-        <!-- Статистика -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Оборудование</div>
-                <div class="stat-value" id="equipmentCount">0</div>
+            <div class="header-right">
+                <nav class="main-nav">
+                    <button id="statisticsBtn" class="nav-btn" onclick="showStatisticsPage()">
+                        Статистика
+                    </button>
+                    <button class="nav-btn logout-btn" onclick="logout()">
+                        Выйти
+                    </button>
+                </nav>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">Топливо</div>
-                <div class="stat-value" id="fuelCount">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Гейзеры</div>
-                <div class="stat-value" id="geyserCount">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Ремонты</div>
-                <div class="stat-value" id="repairCount">0</div>
-            </div>
-        </div>
+        </header>
 
-        <!-- CRUD операции для Equipment -->
-        <div class="crud-section">
-            <h2 class="section-title">🏗️ Управление оборудованием</h2>
-            <div class="crud-actions">
-                <button class="crud-btn" onclick="getEquipment()">📋 Получить оборудование</button>
-                <button class="crud-btn" onclick="createEquipment()">➕ Добавить оборудование</button>
-                <button class="crud-btn" onclick="updateEquipment()">✏️ Обновить оборудование</button>
-                <button class="crud-btn" onclick="deleteEquipment()">🗑️ Удалить оборудование</button>
-            </div>
-            <div id="equipmentOutput" class="api-output"></div>
-        </div>
+        <!-- Основное содержание -->
+        <main class="dashboard-main">
+            <div class="content-header">
+                <h2 class="section-title">Таблицы</h2>
+                <div class="controls-row">
+                    <div class="table-selection">
+                        <label for="tableSelect" class="select-label">Название таблицы</label>
+                        <select id="tableSelect" class="table-select" onchange="onTableSelect()">
+                            <option value="">-- Выберите таблицу --</option>
+                            <option value="equipment">Оборудование</option>
+                            <option value="fuel">Топливо</option>
+                            <option value="geyser">Колонки</option>
+                            <option value="users">Пользователи</option>
+                            <option value="repair">Ремонты</option>
+                            <option value="roles">Роли</option>
+                        </select>
+                    </div>
 
-        <!-- CRUD операции для Fuel -->
-        <div class="crud-section">
-            <h2 class="section-title">⛽ Управление топливом</h2>
-            <div class="crud-actions">
-                <button class="crud-btn" onclick="getFuel()">📋 Получить топливо</button>
-                <button class="crud-btn" onclick="createFuel()">➕ Добавить топливо</button>
-                <button class="crud-btn" onclick="updateFuel()">✏️ Обновить топливо</button>
-                <button class="crud-btn" onclick="deleteFuel()">🗑️ Удалить топливо</button>
+                    <button id="generateBtn" class="generate-btn" onclick="generateData()" disabled>
+                        генерация данных
+                    </button>
+                </div>
             </div>
-            <div id="fuelOutput" class="api-output"></div>
-        </div>
 
-        <!-- CRUD операции для Geyser -->
-        <div class="crud-section">
-            <h2 class="section-title">🔥 Управление гейзерами</h2>
-            <div class="crud-actions">
-                <button class="crud-btn" onclick="getGeysers()">📋 Получить гейзеры</button>
-                <button class="crud-btn" onclick="createGeyser()">➕ Добавить гейзер</button>
-                <button class="crud-btn" onclick="updateGeyser()">✏️ Обновить гейзер</button>
-                <button class="crud-btn" onclick="deleteGeyser()">🗑️ Удалить гейзер</button>
-            </div>
-            <div id="geyserOutput" class="api-output"></div>
-        </div>
+            <!-- Область для данных таблицы -->
+            <div class="data-container">
+                <div id="loading" class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Загрузка данных...</p>
+                </div>
 
-        <!-- CRUD операции для Repair -->
-        <div class="crud-section">
-            <h2 class="section-title">🔧 Управление ремонтами</h2>
-            <div class="crud-actions">
-                <button class="crud-btn" onclick="getRepairs()">📋 Получить ремонты</button>
-                <button class="crud-btn" onclick="createRepair()">➕ Добавить ремонт</button>
-                <button class="crud-btn" onclick="updateRepair()">✏️ Обновить ремонт</button>
-                <button class="crud-btn" onclick="deleteRepair()">🗑️ Удалить ремонт</button>
+                <div id="noData" class="no-data">
+                    <p>Выберите таблицу</p>
+                </div>
+
+                <div id="dataTableContainer" class="table-container" style="display: none;">
+                    <table class="data-table">
+                        <thead id="tableHeader">
+                            <!-- Заголовки будут заполнены динамически -->
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Данные будут заполнены динамически -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div id="repairOutput" class="api-output"></div>
+        </main>
+    </div>
+
+    <!-- Модальное окно для подробного просмотра -->
+    <div id="detailsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="modalContent"></div>
         </div>
     </div>
 
