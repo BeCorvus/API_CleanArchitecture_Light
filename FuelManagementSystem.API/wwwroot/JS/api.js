@@ -1,41 +1,22 @@
-﻿// api.js
-const API_BASE_URL = 'http://localhost:5077/api';
+﻿const API_BASE_URL = 'http://localhost:5077/api';
 
 class ApiService {
     constructor() {
         this.token = localStorage.getItem('authToken');
         this.userRole = localStorage.getItem('userRole');
         this.userName = localStorage.getItem('userName');
-        console.log('🔧 ApiService инициализирован');
-        console.log('📋 Текущая роль:', this.userRole);
-        console.log('👤 Текущий пользователь:', this.userName);
     }
 
     setToken(token) {
         this.token = token;
         localStorage.setItem('authToken', token);
-        console.log('🔑 Токен установлен');
     }
 
     setUserInfo(username, role) {
-        console.log('💾 Сохраняем данные пользователя:');
-        console.log('👤 Имя:', username);
-        console.log('🎭 Роль:', role);
-
         this.userName = username;
         this.userRole = role;
         localStorage.setItem('userName', username);
         localStorage.setItem('userRole', role);
-
-        // Сохраняем отладочные данные
-        localStorage.setItem('userDebug', JSON.stringify({
-            username: username,
-            role: role,
-            timestamp: new Date().toISOString()
-        }));
-
-        console.log('✅ Данные сохранены в localStorage');
-        console.log('📋 Проверка localStorage - роль:', localStorage.getItem('userRole'));
     }
 
     clearData() {
@@ -45,12 +26,9 @@ class ApiService {
         localStorage.removeItem('authToken');
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
-        localStorage.removeItem('userDebug');
-        console.log('🧹 Данные пользователя очищены');
     }
 
     async request(endpoint, options = {}) {
-        console.log('📤 Запрос к:', endpoint);
         const url = `${API_BASE_URL}${endpoint}`;
 
         const headers = {
@@ -72,7 +50,6 @@ class ApiService {
         }
 
         try {
-            console.log('🔄 Выполняем запрос к:', url);
             const response = await fetch(url, config);
 
             if (response.status === 401) {
@@ -90,7 +67,6 @@ class ApiService {
             }
 
             if (!response.ok) {
-                console.error('❌ Ошибка сервера:', responseData);
                 const error = new Error(`HTTP error! status: ${response.status}`);
                 error.status = response.status;
                 error.data = responseData;
@@ -108,11 +84,9 @@ class ApiService {
                 throw error;
             }
 
-            console.log('✅ Ответ получен:', responseData);
             return responseData;
 
         } catch (error) {
-            console.error('❌ Ошибка запроса:', error);
             if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
                 error.message = 'Не удалось подключиться к серверу. Проверьте подключение.';
             }
@@ -121,20 +95,16 @@ class ApiService {
     }
 
     async login(credentials) {
-        console.log('🔐 Попытка входа с данными:', credentials);
         try {
             const loginData = {
                 login: credentials.login || credentials.username || credentials.email,
                 password: credentials.password
             };
 
-            console.log('📤 Отправка данных на сервер:', loginData);
             const result = await this.request('/auth/login', {
                 method: 'POST',
                 body: loginData
             });
-
-            console.log('🔑 Ответ от сервера:', result);
 
             if (result) {
                 if (result.token) {
@@ -143,8 +113,6 @@ class ApiService {
 
                 if (result.user) {
                     const userRole = result.user.role || 'user';
-                    console.log('🎭 Роль пользователя получена с сервера:', userRole);
-
                     this.setUserInfo(
                         result.user.username || result.user.login || result.user.email || 'Пользователь',
                         userRole
@@ -154,80 +122,38 @@ class ApiService {
 
             return result;
         } catch (error) {
-            console.error('❌ Ошибка входа:', error);
             throw error;
         }
     }
 
-    findUserRole(userData) {
-        console.log('🔍 Ищем роль в данных пользователя:', userData);
-        console.log('🔍 Ключи в данных:', Object.keys(userData));
-
-        const possibleRoleFields = [
-            'Role',
-            'role',
-            'ID_Roles',
-            'Roles',
-            'userRole',
-            'NameRole',
-            'nameRole',
-            'roles',
-            'rolename'
-        ];
-
-        for (const field of possibleRoleFields) {
-            if (userData[field] !== undefined && userData[field] !== null) {
-                console.log(`✅ Роль найдена в поле "${field}":`, userData[field]);
-                return userData[field];
-            }
-        }
-
-        if (userData.user && userData.user.Role) {
-            console.log('✅ Роль найдена в user.Role:', userData.user.Role);
-            return userData.user.Role;
-        }
-
-        console.warn('⚠️ Роль не найдена в данных пользователя, используется значение по умолчанию "User"');
-        return 'User';
-    }
-
     isAdmin() {
         const role = this.userRole || localStorage.getItem('userRole');
-        console.log('🔐 Проверка прав администратора для роли:', role);
 
         if (!role) {
-            console.log('❌ Роль не определена');
             return false;
         }
 
         const roleLower = role.toString().toLowerCase().trim();
-        console.log('🔐 Приведенная роль:', roleLower);
 
-        const isAdmin = roleLower === 'admin' ||
+        return roleLower === 'admin' ||
             roleLower === '0' ||
             roleLower === 'администратор' ||
             roleLower === 'админ' ||
             roleLower.includes('admin') ||
             roleLower.includes('админ') ||
             roleLower === 'administrator';
-
-        console.log('🔐 Результат проверки isAdmin:', isAdmin);
-        return isAdmin;
     }
 
     isManager() {
         const role = this.userRole || localStorage.getItem('userRole');
-        console.log('👔 Проверка прав менеджера для роли:', role);
 
         if (!role) {
-            console.log('❌ Роль не определена');
             return false;
         }
 
         const roleLower = role.toString().toLowerCase().trim();
-        console.log('👔 Приведенная роль:', roleLower);
 
-        const isManager = roleLower === 'manager' ||
+        return roleLower === 'manager' ||
             roleLower === 'менеджер' ||
             roleLower.includes('manager') ||
             roleLower.includes('менеджер') ||
@@ -235,87 +161,229 @@ class ApiService {
             roleLower === '2' ||
             roleLower === 'руководитель' ||
             roleLower.includes('руковод');
+    }
 
-        console.log('👔 Результат проверки isManager:', isManager);
-        return isManager;
+    isUser() {
+        return !this.isAdmin() && !this.isManager();
     }
 
     canViewStatistics() {
-        const isAdmin = this.isAdmin();
-        const isManager = this.isManager();
-        const canView = isAdmin || isManager;
-
-        console.log('📊 Проверка доступа к статистике:');
-        console.log('👑 Администратор?:', isAdmin);
-        console.log('👔 Менеджер?:', isManager);
-        console.log('✅ Может просматривать статистику?:', canView);
-
-        return canView;
+        return this.isAdmin() || this.isManager();
     }
 
     async getTableData(tableName) {
-        console.log(`📊 Получение данных для таблицы: ${tableName}`);
-        console.log(`👤 Роль пользователя: ${this.userRole}`);
-        console.log(`👑 Администратор?: ${this.isAdmin()}`);
-
         try {
             const endpointMap = {
-                'equipment': this.isAdmin() ? '/equipment/admin' : '/equipment',
-                'fuel': this.isAdmin() ? '/fuel/admin' : '/fuel',
-                'columns': this.isAdmin() ? '/columns/admin' : '/columns',
-                'users': this.isAdmin() ? '/users/admin' : '/users',
-                'repairs': this.isAdmin() ? '/repairs/admin' : '/repairs',
-                'roles': this.isAdmin() ? '/roles/admin' : '/roles',
-                'geyser': '/geyser',
-                'repair': '/repair',
-                'role': this.isAdmin() ? '/roles/admin' : '/roles',
-                'user': this.isAdmin() ? '/users/admin' : '/users'
+                'equipment': this.isAdmin() ? '/equipment' : '/equipment/active',
+                'fuel': this.isAdmin() ? '/fuel' : '/fuel/active',
+                'geyser': this.isAdmin() ? '/geyser' : '/geyser/active',
+                'users': this.isAdmin() ? '/user' : '/user/active',
+                'repair': this.isAdmin() ? '/repair' : '/repair/active',
+                'roles': this.isAdmin() ? '/role' : '/role/active'
             };
 
-            const endpoint = endpointMap[tableName] || `/${tableName}`;
-            console.log(`📍 Используем endpoint: ${endpoint}`);
+            const endpoint = endpointMap[tableName];
+            if (!endpoint) {
+                throw new Error(`Нет endpoint для таблицы: ${tableName}`);
+            }
 
             const response = await this.request(endpoint, { method: 'GET' });
-            console.log(`✅ Данные получены для ${tableName}:`, response);
 
-            // Обработка ответа
-            if (Array.isArray(response)) {
-                return response;
-            } else if (response && response.data && Array.isArray(response.data)) {
-                return response.data;
-            } else if (response && typeof response === 'object') {
-                // Если пришел объект с полем id, оборачиваем в массив
-                if (response.id !== undefined || response.Id !== undefined) {
-                    return [response];
-                }
-                // Пробуем найти любой массив в объекте
-                for (const key in response) {
-                    if (Array.isArray(response[key])) {
-                        return response[key];
+            let data = this.processResponseData(response);
+
+            // Для администратора показываем все записи
+            // Для остальных фильтруем удаленные
+            if (!this.isAdmin()) {
+                data = data.filter(item => !this.isRecordDeleted(item));
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Ошибка при получении данных таблицы:', error);
+
+            // Fallback на основной endpoint, если нет /active
+            if (error.message.includes('404') || error.message.includes('Not Found')) {
+                const fallbackEndpointMap = {
+                    'equipment': '/equipment',
+                    'fuel': '/fuel',
+                    'geyser': '/geyser',
+                    'users': '/user',
+                    'repair': '/repair',
+                    'roles': '/role'
+                };
+
+                try {
+                    const fallbackEndpoint = fallbackEndpointMap[tableName];
+                    const fallbackResponse = await this.request(fallbackEndpoint, { method: 'GET' });
+                    let fallbackData = this.processResponseData(fallbackResponse);
+
+                    // Фильтруем удаленные записи для не-администраторов
+                    if (!this.isAdmin()) {
+                        fallbackData = fallbackData.filter(item => !this.isRecordDeleted(item));
                     }
+
+                    return fallbackData;
+                } catch (fallbackError) {
+                    throw fallbackError;
                 }
             }
 
-            console.warn('⚠️ Некорректный формат данных, возвращаем пустой массив');
-            return [];
-        } catch (error) {
-            console.error(`❌ Ошибка получения данных для таблицы ${tableName}:`, error);
             throw error;
         }
     }
 
-    async getStatistics(tableName, type = 'daily') {
-        console.log(`📈 Получение статистики для таблицы: ${tableName}, тип: ${type}`);
+    isRecordDeleted(item) {
+        const deleteFields = ['whenDeleted', 'WhenDeleted', 'dateDeleted', 'DateDeleted', 'deletedAt', 'DeletedAt', 'isDeleted'];
+        for (const field of deleteFields) {
+            if (item[field] !== null && item[field] !== undefined && item[field] !== '') {
+                // Проверяем также булевое значение
+                if (typeof item[field] === 'boolean' && item[field] === true) {
+                    return true;
+                }
+                // Проверяем строку/число
+                if (item[field] || item[field] === 0 || item[field] === false) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
+    async deleteRecord(tableName, id) {
+        try {
+            const endpointMap = {
+                'equipment': `/equipment/${id}`,
+                'fuel': `/fuel/${id}`,
+                'geyser': `/geyser/${id}`,
+                'users': `/user/${id}`,
+                'repair': `/repair/${id}`,
+                'roles': `/role/${id}`
+            };
+
+            const endpoint = endpointMap[tableName];
+            if (!endpoint) {
+                throw new Error(`Нет endpoint для удаления записи в таблице: ${tableName}`);
+            }
+
+            // Для всех ролей используем PATCH для мягкого удаления
+            const method = 'PATCH';
+
+            // Для администратора - помечаем как удаленное с датой
+            // Для других - скрываем запись
+            const requestBody = {
+                isDeleted: true,
+                deletedAt: new Date().toISOString()
+            };
+
+            const response = await this.request(endpoint, {
+                method: method,
+                body: requestBody
+            });
+
+            return response;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async restoreRecord(tableName, id) {
+        try {
+            if (!this.isAdmin()) {
+                throw new Error('Только администратор может восстанавливать записи');
+            }
+
+            const endpointMap = {
+                'equipment': `/equipment/restore/${id}`,
+                'fuel': `/fuel/restore/${id}`,
+                'geyser': `/geyser/restore/${id}`,
+                'users': `/user/restore/${id}`,
+                'repair': `/repair/restore/${id}`,
+                'roles': `/role/restore/${id}`
+            };
+
+            const endpoint = endpointMap[tableName];
+            if (!endpoint) {
+                throw new Error(`Нет endpoint для восстановления записи в таблице: ${tableName}`);
+            }
+
+            const response = await this.request(endpoint, {
+                method: 'PATCH',
+                body: { isDeleted: false, deletedAt: null }
+            });
+
+            return response;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    getRecordId(record) {
+        if (!record || typeof record !== 'object') {
+            console.error('Некорректная запись:', record);
+            return null;
+        }
+
+        // Список возможных названий полей с ID
+        const idFields = [
+            'id', 'Id', 'ID',
+            'idEquipment', 'IdEquipment', 'IDEquipment',
+            'idFuel', 'IdFuel', 'IDFuel',
+            'idGeyser', 'IdGeyser', 'IDGeyser',
+            'idRepair', 'IdRepair', 'IDRepair',
+            'idRole', 'IdRole', 'IDRole',
+            'idUser', 'IdUser', 'IDUser',
+            'idequipment', 'idfuel', 'idgeyser', 'idrepair', 'idrole', 'iduser'
+        ];
+
+        for (const field of idFields) {
+            if (field in record) {
+                const value = record[field];
+                if (value !== null && value !== undefined) {
+                    return value;
+                }
+            }
+        }
+
+        // Если не нашли в стандартных полях, ищем поле, содержащее "id" в названии
+        for (const key in record) {
+            if (record.hasOwnProperty(key) && key.toLowerCase().includes('id')) {
+                const value = record[key];
+                if (value !== null && value !== undefined) {
+                    return value;
+                }
+            }
+        }
+
+        console.warn('ID не найден в записи:', record);
+        return null;
+    }
+
+    processResponseData(response) {
+        if (Array.isArray(response)) {
+            return response;
+        } else if (response && response.data && Array.isArray(response.data)) {
+            return response.data;
+        } else if (response && typeof response === 'object') {
+            // Проверяем наличие любого ID поля
+            const id = this.getRecordId(response);
+            if (id !== null) {
+                return [response];
+            }
+            for (const key in response) {
+                if (Array.isArray(response[key])) {
+                    return response[key];
+                }
+            }
+        }
+        return [];
+    }
+
+    async getStatistics(tableName, type = 'daily') {
         try {
             const endpoint = `/statistics/${tableName}?type=${type}`;
             const data = await this.request(endpoint, { method: 'GET' });
-            console.log('✅ Статистика получена с сервера:', data);
             return data;
         } catch (error) {
-            console.warn(`⚠️ Не удалось получить статистику с сервера для ${tableName}:`, error);
-
-            // Генерация базовой статистики
             return this.generateBasicStatistics(tableName);
         }
     }
@@ -338,7 +406,6 @@ class ApiService {
                 total: data.length
             };
 
-            // Простая статистика - первые 6 записей
             for (let i = 0; i < Math.min(data.length, 6); i++) {
                 stats.labels.push(`Запись ${i + 1}`);
                 stats.data.push(Math.floor(Math.random() * 100) + 1);
@@ -346,7 +413,6 @@ class ApiService {
 
             return stats;
         } catch (error) {
-            console.error(`❌ Ошибка генерации статистики:`, error);
             return {
                 labels: ['Ошибка'],
                 data: [1],
@@ -356,21 +422,8 @@ class ApiService {
     }
 
     logout() {
-        console.log('🚪 Выход из системы');
         this.clearData();
         window.location.href = 'login.html';
-    }
-
-    async testEndpoint(endpoint) {
-        try {
-            console.log(`🔍 Тестируем endpoint: ${endpoint}`);
-            const response = await this.request(endpoint, { method: 'GET' });
-            console.log(`✅ Endpoint доступен: ${endpoint}`);
-            return { available: true, data: response };
-        } catch (error) {
-            console.log(`❌ Endpoint недоступен: ${endpoint} - ${error.message}`);
-            return { available: false, error: error.message };
-        }
     }
 }
 

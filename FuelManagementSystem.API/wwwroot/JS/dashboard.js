@@ -1,52 +1,33 @@
-﻿// dashboard.js
-let currentTable = '';
+﻿let currentTable = '';
 let currentData = [];
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('🚀 Инициализация панели управления...');
     checkAuth();
     setupEventListeners();
     initDashboard();
 });
 
 function initDashboard() {
-    console.log('✅ Дашборд инициализирован');
     clearTable();
-
-    // Обновляем список таблиц в зависимости от роли
     updateTableSelectBasedOnRole();
-
-    // Проверка прав доступа
-    setTimeout(() => {
-        console.log('🔍 Проверка прав доступа...');
-        manageStatisticsButton();
-    }, 1000);
 }
 
 async function checkAuth() {
-    console.log('🔐 Проверка авторизации...');
     const token = localStorage.getItem('authToken');
 
     if (!token) {
-        console.log('❌ Токен не найден, перенаправление на страницу входа');
         window.location.href = 'login.html';
         return;
     }
 
-    // Получаем данные пользователя
     const userName = localStorage.getItem('userName');
     let userRole = localStorage.getItem('userRole');
-
-    console.log('📋 Данные пользователя:');
-    console.log('👤 Имя:', userName);
-    console.log('🎭 Роль:', userRole);
 
     if (userName) {
         const userNameElement = document.getElementById('userName');
         if (userNameElement) {
             userNameElement.textContent = userName;
-            console.log('✅ Имя пользователя установлено:', userName);
         }
     }
 
@@ -54,19 +35,10 @@ async function checkAuth() {
         const userRoleElement = document.getElementById('userRole');
         if (userRoleElement) {
             userRoleElement.textContent = formatDisplayRole(userRole);
-            console.log('✅ Роль пользователя установлена:', userRole);
         }
 
         manageStatisticsButton();
         updateTableSelectBasedOnRole();
-
-        console.log('📊 Проверка доступа к статистике:');
-        console.log('👑 Администратор?:', api.isAdmin());
-        console.log('👔 Менеджер?:', api.isManager());
-        console.log('✅ Может просматривать статистику?:', api.canViewStatistics());
-    } else {
-        console.warn('⚠️ Роль пользователя не найдена в localStorage');
-        manageStatisticsButton();
     }
 }
 
@@ -165,23 +137,16 @@ function sortHeadersForAdmin(headers) {
     serviceHeaders.sort((a, b) => a.order - b.order);
     const sortedServiceHeaders = serviceHeaders.map(item => item.header);
 
-    console.log('📊 Порядок служебных полей для администратора:');
-    console.log('📌 Обычные поля:', regularHeaders);
-    console.log('🔧 Служебные поля:', sortedServiceHeaders);
-
     return [...regularHeaders, ...sortedServiceHeaders];
 }
 
 function updateTableSelectBasedOnRole() {
     const tableSelect = document.getElementById('tableSelect');
     if (!tableSelect) {
-        console.error('❌ Элемент выбора таблицы не найден');
         return;
     }
 
     const isAdmin = api.isAdmin();
-    console.log('🎭 Обновление списка таблиц для роли. Админ?:', isAdmin);
-
     const options = tableSelect.options;
 
     for (let i = 0; i < options.length; i++) {
@@ -193,12 +158,10 @@ function updateTableSelectBasedOnRole() {
                 option.style.display = 'block';
                 option.disabled = false;
                 option.classList.remove('hidden');
-                console.log(`✅ Таблица "${option.text}" доступна для админа`);
             } else {
                 option.style.display = 'none';
                 option.disabled = true;
                 option.classList.add('hidden');
-                console.log(`🚫 Таблица "${option.text}" скрыта для не-админа`);
 
                 if (tableSelect.value === value) {
                     tableSelect.value = '';
@@ -215,53 +178,30 @@ function updateTableSelectBasedOnRole() {
             }
         }
     }
-
-    const visibleOptions = Array.from(options).filter(opt => opt.style.display !== 'none');
-    const noDataDiv = document.getElementById('noData');
-
-    if (visibleOptions.length === 0 && noDataDiv) {
-        noDataDiv.innerHTML = `
-            <div style="text-align: center; padding: 20px;">
-                <h3>Нет доступных таблиц</h3>
-                <p>У вашей роли нет прав доступа к таблицам.</p>
-                <p>Обратитесь к администратору.</p>
-            </div>
-        `;
-    }
 }
 
 function manageStatisticsButton() {
     const statsBtn = document.getElementById('statisticsBtn');
     if (!statsBtn) {
-        console.error('❌ Кнопка статистики не найдена в DOM');
         return;
     }
 
     const canViewStats = api.canViewStatistics();
 
-    console.log('📊 Управление кнопки статистики:');
-    console.log('👑 Администратор?:', api.isAdmin());
-    console.log('👔 Менеджер?:', api.isManager());
-    console.log('✅ Может просматривать статистику?:', canViewStats);
-
     if (canViewStats) {
         statsBtn.classList.remove('hidden');
         statsBtn.style.display = 'inline-block';
-        console.log('✅ Кнопка статистики показана');
     } else {
         statsBtn.classList.add('hidden');
         statsBtn.style.display = 'none';
-        console.log('❌ Кнопка статистики скрыта');
     }
 }
 
 function formatDisplayRole(role) {
     if (!role) {
-        console.warn('⚠️ Роль пустая при форматировании');
         return 'Пользователь';
     }
 
-    console.log('🎨 Форматирование роли:', role);
     const roleLower = role.toString().toLowerCase().trim();
 
     if (roleLower.includes('admin') || roleLower.includes('админ')) {
@@ -305,58 +245,12 @@ function logout() {
 }
 
 function showStatisticsPage() {
-    console.log('📊 Попытка перехода на страницу статистики');
-
     if (!api.canViewStatistics()) {
         alert('Доступ к статистике только для администраторов и менеджеров');
         return;
     }
 
-    testStatisticsAccess()
-        .then(hasAccess => {
-            if (hasAccess) {
-                console.log('✅ Доступ подтвержден, переход на страницу статистики');
-                window.location.href = 'statistics.html';
-            } else {
-                alert('Сервер не разрешает доступ к статистике. Обратитесь к администратору.');
-            }
-        })
-        .catch(error => {
-            console.error('❌ Ошибка проверки доступа:', error);
-            alert('Ошибка проверки доступа: ' + error.message);
-        });
-}
-
-async function testStatisticsAccess() {
-    try {
-        console.log('🔍 Тестируем доступ к статистике...');
-        console.log('🔑 Токен:', api.token);
-        console.log('🎭 Роль:', api.userRole);
-
-        const response = await fetch('http://localhost:5077/api/statistics', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${api.token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        console.log('📊 Ответ сервера:', response.status, response.statusText);
-
-        if (response.ok) {
-            return true;
-        } else if (response.status === 403) {
-            const errorData = await response.text();
-            console.error('❌ Доступ запрещен:', errorData);
-            return false;
-        } else {
-            console.error('❌ Неизвестная ошибка:', response.status);
-            return false;
-        }
-    } catch (error) {
-        console.error('❌ Ошибка запроса:', error);
-        throw error;
-    }
+    window.location.href = 'statistics.html';
 }
 
 function onTableSelect() {
@@ -397,7 +291,7 @@ async function generateData() {
     tableContainer.style.display = 'none';
 
     try {
-        currentData = await fetchTableData(currentTable);
+        currentData = await api.getTableData(currentTable);
 
         if (!currentData || currentData.length === 0) {
             noData.textContent = 'В таблице нет данных';
@@ -419,25 +313,88 @@ async function generateData() {
     }
 }
 
-async function fetchTableData(tableName) {
+function isRecordDeleted(record) {
+    const deleteFields = ['whenDeleted', 'WhenDeleted', 'dateDeleted', 'DateDeleted', 'deletedAt', 'DeletedAt', 'isDeleted'];
+    for (const field of deleteFields) {
+        if (record[field] !== null && record[field] !== undefined && record[field] !== '') {
+            // Проверяем булевое значение
+            if (typeof record[field] === 'boolean' && record[field] === true) {
+                return true;
+            }
+            // Проверяем строку/число
+            if (record[field] || record[field] === 0 || record[field] === false) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Функция удаления/восстановления записи
+async function handleDeleteRestore(record) {
     try {
-        console.log(`📥 Запрос данных для таблицы: ${tableName}`);
+        console.log('🔍 Попытка удаления/восстановления записи:', record);
 
-        // Используем метод из API
-        const response = await api.getTableData(tableName);
+        const recordId = api.getRecordId(record);
+        console.log('📋 Извлеченный ID:', recordId);
 
-        console.log(`📊 Данные получены для ${tableName}:`, response);
-
-        if (!response || response.length === 0) {
-            console.log(`⚠️ Нет данных для таблицы ${tableName}`);
-            return [];
+        // Проверяем, что ID определен
+        if (recordId === null || recordId === undefined) {
+            console.error('❌ Не удалось определить ID записи. Доступные поля:', Object.keys(record));
+            throw new Error('Не удалось определить ID записи. Доступные поля: ' + Object.keys(record).join(', '));
         }
 
-        return response;
+        const isAdmin = api.isAdmin();
+        const isDeleted = isRecordDeleted(record);
+
+        if (isAdmin && isDeleted) {
+            // Восстановление записи для администратора
+            if (confirm('Восстановить эту запись? Запись станет доступной для всех пользователей.')) {
+                await api.restoreRecord(currentTable, recordId);
+                showNotification('Запись восстановлена', 'success');
+                generateData();
+            }
+        } else {
+            // Удаление записи
+            let message = '';
+            let confirmText = '';
+
+            if (isAdmin) {
+                message = 'Вы уверены, что хотите удалить эту запись?\n\n' +
+                    '✅ Запись останется видимой для администратора\n' +
+                    '📅 Будет записана дата удаления\n' +
+                    '❌ Пользователи и менеджеры не увидят эту запись\n\n' +
+                    'Вы можете восстановить запись позже.';
+                confirmText = 'Пометить как удаленную';
+            } else if (api.isManager()) {
+                message = 'Вы уверены, что хотите удалить эту запись?\n\n' +
+                    '✅ Запись будет скрыта из списка\n' +
+                    '👨‍💼 Администратор сможет видеть и восстанавливать запись\n' +
+                    '❌ Обычные пользователи не увидят эту запись';
+                confirmText = 'Удалить (скрыть)';
+            } else {
+                message = 'Вы уверены, что хотите удалить эту запись?\n\n' +
+                    '✅ Запись будет скрыта из списка\n' +
+                    '👨‍💼 Администратор и менеджер смогут видеть запись\n' +
+                    '⚠️  Удаление можно отменить только через администратора';
+                confirmText = 'Удалить (скрыть)';
+            }
+
+            if (confirm(message)) {
+                await api.deleteRecord(currentTable, recordId);
+
+                if (isAdmin) {
+                    showNotification('Запись помечена как удаленная', 'success');
+                } else {
+                    showNotification('Запись удалена (скрыта из списка)', 'success');
+                }
+
+                generateData();
+            }
+        }
     } catch (error) {
-        console.error(`❌ Ошибка загрузки ${tableName}:`, error);
-        showNotification(`Ошибка при загрузке данных: ${error.message}`, 'error');
-        return [];
+        console.error('❌ Ошибка в handleDeleteRestore:', error);
+        showNotification(`Ошибка: ${error.message}`, 'error');
     }
 }
 
@@ -465,18 +422,11 @@ function displayTableData(data) {
 
     // Фильтрация ID столбцов для не-администраторов
     if (shouldHideIdColumns()) {
-        console.log('🚫 Скрываем ID столбцы для не-администратора');
         displayHeaders = displayHeaders.filter(header => !isIdColumn(header));
     }
 
     // Для администратора сортируем заголовки - служебные поля в конце
     displayHeaders = sortHeadersForAdmin(displayHeaders);
-
-    console.log('📋 Итоговый порядок столбцов:');
-    displayHeaders.forEach((header, index) => {
-        const order = getServiceFieldOrder(header);
-        console.log(`${index + 1}. ${header} (порядок: ${order})`);
-    });
 
     const headerRow = document.createElement('tr');
 
@@ -497,7 +447,6 @@ function displayTableData(data) {
             th.classList.add('admin-service-header');
             th.style.backgroundColor = '#e8f5e9';
             th.style.borderLeft = '2px solid #4caf50';
-            th.title = `Служебное поле (порядок: ${order})`;
         }
 
         headerRow.appendChild(th);
@@ -505,7 +454,7 @@ function displayTableData(data) {
 
     const actionsTh = document.createElement('th');
     actionsTh.textContent = 'Действия';
-    actionsTh.style.width = '100px';
+    actionsTh.style.width = '150px';
     actionsTh.style.textAlign = 'center';
     headerRow.appendChild(actionsTh);
 
@@ -514,12 +463,23 @@ function displayTableData(data) {
     data.forEach((row, rowIndex) => {
         const tableRow = document.createElement('tr');
 
+        // Проверяем, удалена ли запись
+        const isDeleted = isRecordDeleted(row);
+        const isAdmin = api.isAdmin();
+
+        // Для администратора: выделяем удаленные записи
+        if (isAdmin && isDeleted) {
+            tableRow.style.backgroundColor = '#fff8f8';
+            tableRow.style.borderLeft = '4px solid #ff6b6b';
+            tableRow.style.opacity = '0.85';
+        }
+
         // Ячейка с номером строки
         const numberTd = document.createElement('td');
         numberTd.textContent = rowIndex + 1;
         numberTd.style.textAlign = 'center';
         numberTd.style.fontWeight = 'bold';
-        numberTd.style.backgroundColor = '#f8f9fa';
+        numberTd.style.backgroundColor = isAdmin && isDeleted ? '#ffe6e6' : '#f8f9fa';
         tableRow.appendChild(numberTd);
 
         displayHeaders.forEach((header, colIndex) => {
@@ -529,7 +489,7 @@ function displayTableData(data) {
             td.textContent = value;
 
             // Специальное форматирование для служебных полей администратора
-            if (api.isAdmin()) {
+            if (isAdmin) {
                 const order = getServiceFieldOrder(header);
 
                 if (order < 999) {
@@ -539,16 +499,14 @@ function displayTableData(data) {
                         td.style.fontFamily = 'monospace';
                         td.style.fontSize = '12px';
                         td.style.color = '#0066cc';
-                        td.style.backgroundColor = '#f0f8ff';
-                        td.title = `Дата (порядок: ${order})`;
+                        td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#f0f8ff';
                     }
                     // Служебные поля "кто" (порядок 3 и 4)
                     else if (order === 3 || order === 4) {
                         td.classList.add('admin-service-field-user');
                         td.style.fontStyle = 'italic';
                         td.style.color = '#666';
-                        td.style.backgroundColor = '#f9f9f9';
-                        td.title = `Пользователь (порядок: ${order})`;
+                        td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#f9f9f9';
                     }
                     // Служебные поля "когда удалено" (порядок 5)
                     else if (order === 5) {
@@ -557,7 +515,7 @@ function displayTableData(data) {
                         td.style.fontSize = '11px';
                         td.style.color = '#cc0000';
                         td.style.backgroundColor = '#fff0f0';
-                        td.title = 'Дата удаления';
+                        td.style.fontWeight = 'bold';
                     }
                     // Остальные служебные поля
                     else {
@@ -565,15 +523,21 @@ function displayTableData(data) {
                         td.style.fontFamily = 'monospace';
                         td.style.fontSize = '11px';
                         td.style.color = '#0066cc';
-                        td.title = `Служебное поле (порядок: ${order})`;
+                        td.style.backgroundColor = isDeleted ? '#ffe6e6' : '';
                     }
                 }
                 // ID поля
                 else if (isIdColumn(header)) {
                     td.style.fontFamily = 'monospace';
-                    td.style.backgroundColor = '#fff0f0';
+                    td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#fff0f0';
                     td.style.fontWeight = 'bold';
                     td.style.color = '#990000';
+                }
+
+                // Для удаленных записей у администратора
+                if (isDeleted) {
+                    td.style.color = '#666';
+                    td.style.fontStyle = 'italic';
                 }
             }
 
@@ -583,13 +547,67 @@ function displayTableData(data) {
         const actionsTd = document.createElement('td');
         actionsTd.className = 'actions-cell';
         actionsTd.style.textAlign = 'center';
+        actionsTd.style.display = 'flex';
+        actionsTd.style.gap = '5px';
+        actionsTd.style.justifyContent = 'center';
+        actionsTd.style.alignItems = 'center';
 
+        // Кнопка просмотра
         const viewBtn = document.createElement('button');
         viewBtn.className = 'action-btn view-btn';
         viewBtn.textContent = '👁️';
         viewBtn.title = 'Просмотреть подробности';
+        viewBtn.style.cssText = `
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: ${isAdmin && isDeleted ? '#6c757d' : '#4CAF50'};
+            color: white;
+            font-size: 14px;
+            min-width: 40px;
+        `;
+
+        if (isAdmin && isDeleted) {
+            viewBtn.title = 'Просмотреть удаленную запись';
+        }
+
         viewBtn.onclick = () => viewDetails(row, displayHeaders);
         actionsTd.appendChild(viewBtn);
+
+        // Кнопка удаления/восстановления
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'action-btn delete-btn';
+        deleteBtn.style.cssText = `
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            font-size: 14px;
+            min-width: 40px;
+        `;
+
+        if (isAdmin && isDeleted) {
+            // Для администратора: кнопка восстановления удаленной записи
+            deleteBtn.textContent = '♻️';
+            deleteBtn.title = 'Восстановить запись';
+            deleteBtn.style.backgroundColor = '#2196F3';
+        } else {
+            // Для всех: кнопка удаления
+            deleteBtn.textContent = '🗑️';
+
+            if (isAdmin) {
+                deleteBtn.title = 'Пометить как удаленную (остается в списке)';
+                deleteBtn.style.backgroundColor = '#ff9800';
+            } else {
+                deleteBtn.title = 'Удалить запись (скрыть из списка)';
+                deleteBtn.style.backgroundColor = '#f44336';
+            }
+        }
+
+        deleteBtn.onclick = () => handleDeleteRestore(row);
+        actionsTd.appendChild(deleteBtn);
 
         tableRow.appendChild(actionsTd);
         tableBody.appendChild(tableRow);
@@ -686,14 +704,15 @@ function formatHeader(header) {
         'Who_changed': 'Кто изменил',
         'whendeleted': 'Когда удалено',
         'WhenDeleted': 'Когда удалено',
+        'deletedat': 'Дата удаления',
+        'isdeleted': 'Удален',
         'recordedby': 'Записано',
         'changedby': 'Изменено',
         'createdby': 'Создано',
         'modifiedby': 'Изменено',
         'deletedby': 'Удалено',
         'createdat': 'Создано',
-        'updatedat': 'Обновлено',
-        'deletedat': 'Удалено'
+        'updatedat': 'Обновлено'
     };
 
     const lowerHeader = header.toLowerCase();
@@ -732,6 +751,15 @@ function viewDetails(data, displayHeaders = null) {
 
     if (api.isAdmin()) {
         fieldsToShow = sortHeadersForAdmin(fieldsToShow);
+    }
+
+    const isDeleted = isRecordDeleted(data);
+
+    if (isDeleted && api.isAdmin()) {
+        html += '<div style="background-color: #fff0f0; padding: 10px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ff6b6b;">';
+        html += '<strong>⚠️ Эта запись удалена</strong><br>';
+        html += '<small>Видна только администраторам</small>';
+        html += '</div>';
     }
 
     fieldsToShow.forEach(key => {
@@ -804,54 +832,6 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
-// Добавляем функцию отладки
-function debugDashboard() {
-    console.log('🐛 Отладка панели управления:');
-    console.log('🎭 Роль пользователя:', api.userRole);
-    console.log('👤 Имя пользователя:', api.userName);
-    console.log('👑 Администратор?:', api.isAdmin());
-    console.log('👔 Менеджер?:', api.isManager());
-    console.log('📊 Может смотреть статистику?:', api.canViewStatistics());
-    console.log('📋 Текущая таблица:', currentTable);
-    console.log('📊 Текущие данные:', currentData ? currentData.length : 0, 'записей');
-
-    if (currentData && currentData.length > 0) {
-        console.log('🔍 Структура данных:');
-        const firstItem = currentData[0];
-        console.log('🔑 Ключи:', Object.keys(firstItem));
-
-        // Проверяем наличие служебных полей
-        const serviceFields = Object.keys(firstItem).filter(key => isServiceColumn(key));
-        console.log('🔧 Служебные поля в данных:', serviceFields);
-
-        if (api.isAdmin() && serviceFields.length === 0) {
-            console.warn('⚠️ ВНИМАНИЕ: Администратор не видит служебные поля!');
-            console.warn('⚠️ Проверьте endpoint - возможно нужно использовать /admin endpoint');
-        }
-    }
-}
-
-// Добавляем кнопку отладки в интерфейс
-document.addEventListener('DOMContentLoaded', function () {
-    const debugBtn = document.createElement('button');
-    debugBtn.textContent = '🐛 Отладка';
-    debugBtn.style.cssText = `
-        position: fixed;
-        bottom: 10px;
-        right: 10px;
-        z-index: 9999;
-        padding: 5px 10px;
-        background: #ff6b6b;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 12px;
-    `;
-    debugBtn.onclick = debugDashboard;
-    document.body.appendChild(debugBtn);
-});
-
 // Экспорт функций
 window.showStatisticsPage = showStatisticsPage;
 window.logout = logout;
@@ -860,4 +840,3 @@ window.generateData = generateData;
 window.refreshData = refreshData;
 window.viewDetails = viewDetails;
 window.closeModal = closeModal;
-window.debugDashboard = debugDashboard;
