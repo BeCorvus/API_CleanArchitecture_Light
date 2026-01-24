@@ -886,3 +886,266 @@ tr:hover {
         padding: 8px 10px;
     }
 }
+
+/* 🔥 ДОБАВЛЕНО: Стили для админских функций */
+
+/* Стили для служебных полей администратора */
+.admin-service-header {
+    background-color: #e8f5e9 !important;
+    border-left: 3px solid #4caf50 !important;
+    color: #2e7d32 !important;
+    font-weight: 600 !important;
+}
+
+.admin-service-cell {
+    background-color: #f1f8e9 !important;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #1b5e20 !important;
+}
+
+.admin-service-field-date {
+    font-family: 'Courier New', monospace !important;
+    font-size: 12px !important;
+    color: #0066cc !important;
+    background-color: #f0f8ff !important;
+}
+
+.admin-service-field-user {
+    font-style: italic !important;
+    color: #666 !important;
+    background-color: #f9f9f9 !important;
+}
+
+.admin-service-field-delete {
+    font-family: 'Courier New', monospace !important;
+    font-size: 11px !important;
+    color: #cc0000 !important;
+    background-color: #fff0f0 !important;
+    font-weight: bold !important;
+    border: 2px solid #ff6b6b !important;
+    border-radius: 4px !important;
+    padding: 2px 4px !important;
+}
+
+.admin-deleted-record {
+    background-color: #fff8f8 !important;
+    border-left: 4px solid #ff6b6b !important;
+    opacity: 0.9;
+}
+
+    .admin-deleted-record td {
+        background-color: #ffe6e6 !important;
+    }
+
+.deleted-indicator {
+    background-color: #ff6b6b;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    display: block;
+    margin-top: 3px;
+}
+
+/* Подсветка служебных полей в модальном окне */
+.admin-label {
+    color: #2e7d32;
+    font-weight: bold;
+}
+
+.admin-value {
+    font-family: 'Courier New', monospace;
+    color: #1b5e20;
+    background-color: #f1f8e9;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+/* Стили для кнопок действий администратора */
+.action-btn.admin-delete-btn {
+    background-color: #ff9800 !important;
+    color: white !important;
+}
+
+.action-btn.admin-restore-btn {
+    background-color: #2196F3 !important;
+    color: white !important;
+}
+
+.action-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Стили для заголовков служебных полей */
+.admin-service-header::after {
+    content: " 🔧";
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Анимация для выделения удаленных записей */
+@keyframes highlightDeleted {
+    0% {
+        background-color: #ffe6e6;
+    }
+
+    50% {
+        background-color: #ffcccc;
+    }
+
+    100% {
+        background-color: #ffe6e6;
+    }
+}
+
+.admin-deleted-record.highlight {
+    animation: highlightDeleted 2s ease-in-out;
+}
+
+/* Стили для иконок в действиях */
+.action-btn::before {
+    margin-right: 0;
+    font-size: 14px;
+}
+
+.view-btn::before {
+    content: "👁️";
+}
+
+.action-btn.admin-delete-btn::before {
+    content: "🗑️";
+}
+
+.action-btn.admin-restore-btn::before {
+    content: "♻️";
+}
+
+/* Стили для тултипов администратора */
+.admin-tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+    .admin-tooltip .tooltip-text {
+        visibility: hidden;
+        width: 200px;
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 5px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 12px;
+    }
+
+    .admin-tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
+
+/* Стили для бейджа администратора */
+.admin-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+/* Стили для разделителя служебных полей */
+.service-fields-separator {
+    border-top: 2px dashed #4caf50;
+    margin: 10px 0;
+}
+
+    .service-fields-separator th {
+        background-color: #f1f8e9 !important;
+        color: #2e7d32 !important;
+        font-style: italic;
+    }
+
+/* Адаптивные стили для админских элементов */
+@media (max-width: 768px) {
+    .admin-service-header,
+    .admin-service-cell,
+    .admin-service-field-date,
+    .admin-service-field-user,
+    .admin-service-field-delete {
+        font-size: 10px !important;
+        padding: 4px 6px !important;
+    }
+
+    .action-btn {
+        min-width: 30px;
+        height: 30px;
+        font-size: 12px;
+    }
+
+    .admin-badge {
+        font-size: 8px;
+        padding: 2px 6px;
+    }
+}
+
+/* Стили для индикатора режима администратора */
+.admin-mode-indicator {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(255, 152, 0, 0.3);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.8;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.8;
+    }
+}
+
+/* Стили для подвала администратора */
+.admin-footer-note {
+    background-color: #f1f8e9;
+    border: 1px solid #4caf50;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 20px;
+    text-align: center;
+    font-size: 12px;
+    color: #2e7d32;
+}
+
+/* Стили для контрастного текста администратора */
+.admin-highlight-text {
+    color: #ff5722;
+    font-weight: bold;
+    background-color: #fff3e0;
+    padding: 2px 6px;
+    border-radius: 4px;
+}

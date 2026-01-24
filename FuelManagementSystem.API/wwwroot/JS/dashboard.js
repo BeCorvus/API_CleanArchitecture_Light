@@ -81,13 +81,13 @@ function isServiceColumn(header) {
     if (!header) return false;
     const headerLower = header.toString().toLowerCase();
 
-    return headerLower.includes('record') ||
-        headerLower.includes('change') ||
-        headerLower.includes('who') ||
-        headerLower.includes('when') ||
-        headerLower.includes('delete') ||
-        headerLower.includes('created') ||
-        headerLower.includes('updated');
+    const serviceKeywords = [
+        'record', 'change', 'who', 'when', 'delete',
+        'created', 'updated', 'modified', 'by', 'dateof', 'ofrecording',
+        'ofchange', 'whorecorded', 'whochanged', 'whendeleted'
+    ];
+
+    return serviceKeywords.some(keyword => headerLower.includes(keyword));
 }
 
 function getServiceFieldOrder(header) {
@@ -96,9 +96,9 @@ function getServiceFieldOrder(header) {
     const headerLower = header.toString().toLowerCase();
     const cleanHeader = headerLower.replace(/[^a-z]/g, '');
 
-    if (cleanHeader.includes('daterecord') || cleanHeader.includes('recorddate')) {
+    if (cleanHeader.includes('daterecord') || cleanHeader.includes('recorddate') || cleanHeader.includes('dateofrecord')) {
         return 1;
-    } else if (cleanHeader.includes('datechange') || cleanHeader.includes('changedate')) {
+    } else if (cleanHeader.includes('datechange') || cleanHeader.includes('changedate') || cleanHeader.includes('dateofchange')) {
         return 2;
     } else if (cleanHeader.includes('whorecord') || cleanHeader.includes('recordwho')) {
         return 3;
@@ -106,9 +106,9 @@ function getServiceFieldOrder(header) {
         return 4;
     } else if (cleanHeader.includes('whendelete') || cleanHeader.includes('deletewhen')) {
         return 5;
-    } else if (cleanHeader.includes('createdat') || cleanHeader.includes('createddate')) {
+    } else if (cleanHeader.includes('createdat') || cleanHeader.includes('createddate') || cleanHeader.includes('datecreated')) {
         return 6;
-    } else if (cleanHeader.includes('updatedat') || cleanHeader.includes('updateddate')) {
+    } else if (cleanHeader.includes('updatedat') || cleanHeader.includes('updateddate') || cleanHeader.includes('dateupdated')) {
         return 7;
     } else if (cleanHeader.includes('date') && cleanHeader.includes('record')) {
         return 1;
@@ -317,6 +317,7 @@ async function generateData() {
         } else {
             // Отладочная информация о полях
             console.log(`📋 Поля первой записи для ${currentTable}:`, Object.keys(currentData[0]));
+            console.log(`👁️ Администратор: ${api.isAdmin()}, Видит служебные поля: ${api.isAdmin() ? 'Да' : 'Нет'}`);
 
             displayTableData(currentData);
             tableContainer.style.display = 'block';
@@ -390,16 +391,18 @@ async function handleDeleteRestore(record) {
             let confirmText = '';
 
             if (isAdmin) {
-                message = 'Вы уверены, что хотите удалить эту запись?\n\n' +
+                message = 'Вы уверены, что хотите пометить запись как удаленную?\n\n' +
                     '✅ Запись останется видимой для администратора\n' +
-                    '📅 Будет записана дата удаления\n' +
-                    '❌ Пользователи и менеджеры не увидят эту запись\n\n' +
-                    'Вы можете восстановить запись позже.';
+                    '📅 Будет установлена дата удаления в поле "Когда удалено"\n' +
+                    '👨‍💼 Вы сможете восстановить запись в любой момент\n' +
+                    '❌ Обычные пользователи не увидят эту запись\n\n' +
+                    'Это мягкое удаление - запись не удаляется физически.';
                 confirmText = 'Пометить как удаленную';
             } else if (api.isManager()) {
                 message = 'Вы уверены, что хотите удалить эту запись?\n\n' +
                     '✅ Запись будет скрыта из списка\n' +
                     '👨‍💼 Администратор сможет видеть и восстанавливать запись\n' +
+                    '📅 Будет установлена дата удаления\n' +
                     '❌ Обычные пользователи не увидят эту запись';
                 confirmText = 'Удалить (скрыть)';
             } else {
@@ -414,7 +417,7 @@ async function handleDeleteRestore(record) {
                 await api.deleteRecord(currentTable, recordId);
 
                 if (isAdmin) {
-                    showNotification('Запись помечена как удаленная', 'success');
+                    showNotification('Запись помечена как удаленная (дата установлена)', 'success');
                 } else {
                     showNotification('Запись удалена (скрыта из списка)', 'success');
                 }
@@ -482,11 +485,27 @@ function displayTableData(data) {
 
         // Добавляем классы для служебных полей администратора
         const order = getServiceFieldOrder(header);
-        if (api.isAdmin() && order < 999) {
+        const isServiceField = order < 999;
+
+        if (api.isAdmin() && isServiceField) {
             th.classList.add('admin-service-header');
             th.style.backgroundColor = '#e8f5e9';
             th.style.borderLeft = '2px solid #4caf50';
             th.title = 'Служебное поле';
+
+            // Добавляем иконку для служебных полей
+            const iconSpan = document.createElement('span');
+            iconSpan.textContent = ' 🔧';
+            iconSpan.style.fontSize = '12px';
+            iconSpan.style.marginLeft = '5px';
+            th.appendChild(iconSpan);
+        }
+
+        // Стиль для ID полей администратора
+        if (api.isAdmin() && isIdColumn(header)) {
+            th.style.backgroundColor = '#fff0f0';
+            th.style.color = '#990000';
+            th.style.fontWeight = 'bold';
         }
 
         headerRow.appendChild(th);
@@ -507,13 +526,14 @@ function displayTableData(data) {
         const isDeleted = isRecordDeleted(row);
         const isAdmin = api.isAdmin();
 
-        // Фильтруем записи для не-администраторов
+        // Для администратора показываем ВСЕ записи, для остальных - только неудаленные
         if (!isAdmin && isDeleted) {
             return; // Пропускаем удаленные записи для не-администраторов
         }
 
         // Для администратора: выделяем удаленные записи
         if (isAdmin && isDeleted) {
+            tableRow.classList.add('admin-deleted-record');
             tableRow.style.backgroundColor = '#fff8f8';
             tableRow.style.borderLeft = '4px solid #ff6b6b';
             tableRow.style.opacity = '0.9';
@@ -525,6 +545,24 @@ function displayTableData(data) {
         numberTd.style.textAlign = 'center';
         numberTd.style.fontWeight = 'bold';
         numberTd.style.backgroundColor = isAdmin && isDeleted ? '#ffe6e6' : '#f8f9fa';
+
+        // Для администратора добавляем индикатор удаленной записи
+        if (isAdmin && isDeleted) {
+            const indicator = document.createElement('span');
+            indicator.className = 'deleted-indicator';
+            indicator.textContent = 'Удалено';
+            indicator.style.cssText = `
+                display: block;
+                background-color: #ff6b6b;
+                color: white;
+                font-size: 10px;
+                padding: 2px 6px;
+                border-radius: 10px;
+                margin-top: 3px;
+            `;
+            numberTd.appendChild(indicator);
+        }
+
         tableRow.appendChild(numberTd);
 
         displayHeaders.forEach((header, colIndex) => {
@@ -536,47 +574,53 @@ function displayTableData(data) {
             // Специальное форматирование для служебных полей администратора
             if (isAdmin) {
                 const order = getServiceFieldOrder(header);
+                const isId = isIdColumn(header);
 
-                if (order < 999) {
-                    // Служебные поля дат (порядок 1, 2, 6, 7)
-                    if (order === 1 || order === 2 || order === 6 || order === 7) {
-                        td.classList.add('admin-service-field-date');
-                        td.style.fontFamily = 'monospace';
-                        td.style.fontSize = '12px';
-                        td.style.color = '#0066cc';
-                        td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#f0f8ff';
-                    }
-                    // Служебные поля "кто" (порядок 3 и 4)
-                    else if (order === 3 || order === 4) {
-                        td.classList.add('admin-service-field-user');
-                        td.style.fontStyle = 'italic';
-                        td.style.color = '#666';
-                        td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#f9f9f9';
-                    }
-                    // Служебные поля "когда удалено" (порядок 5)
-                    else if (order === 5) {
-                        td.classList.add('admin-service-field-delete');
-                        td.style.fontFamily = 'monospace';
-                        td.style.fontSize = '11px';
-                        td.style.color = '#cc0000';
-                        td.style.backgroundColor = '#fff0f0';
-                        td.style.fontWeight = 'bold';
-                    }
-                    // Остальные служебные поля
-                    else {
-                        td.classList.add('admin-service-field');
-                        td.style.fontFamily = 'monospace';
-                        td.style.fontSize = '11px';
-                        td.style.color = '#0066cc';
-                        td.style.backgroundColor = isDeleted ? '#ffe6e6' : '';
+                // Служебные поля дат (порядок 1, 2, 6, 7)
+                if (order === 1 || order === 2 || order === 6 || order === 7) {
+                    td.classList.add('admin-service-field-date');
+                    td.style.fontFamily = 'monospace';
+                    td.style.fontSize = '12px';
+                    td.style.color = '#0066cc';
+                    td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#f0f8ff';
+                }
+                // Служебные поля "кто" (порядок 3 и 4)
+                else if (order === 3 || order === 4) {
+                    td.classList.add('admin-service-field-user');
+                    td.style.fontStyle = 'italic';
+                    td.style.color = '#666';
+                    td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#f9f9f9';
+                }
+                // Служебные поля "когда удалено" (порядок 5)
+                else if (order === 5) {
+                    td.classList.add('admin-service-field-delete');
+                    td.style.fontFamily = 'monospace';
+                    td.style.fontSize = '11px';
+                    td.style.color = '#cc0000';
+                    td.style.backgroundColor = '#fff0f0';
+                    td.style.fontWeight = 'bold';
+
+                    // Особое выделение даты удаления
+                    if (value !== '-' && value !== '') {
+                        td.style.border = '2px solid #ff6b6b';
+                        td.style.borderRadius = '4px';
+                        td.style.padding = '2px 4px';
                     }
                 }
                 // ID поля
-                else if (isIdColumn(header)) {
+                else if (isId) {
                     td.style.fontFamily = 'monospace';
                     td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#fff0f0';
                     td.style.fontWeight = 'bold';
                     td.style.color = '#990000';
+                }
+                // Остальные служебные поля
+                else if (order < 999) {
+                    td.classList.add('admin-service-field');
+                    td.style.fontFamily = 'monospace';
+                    td.style.fontSize = '11px';
+                    td.style.color = '#0066cc';
+                    td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#f0f8ff';
                 }
             }
 
@@ -640,7 +684,7 @@ function displayTableData(data) {
                 actionBtn.textContent = '🗑️';
 
                 if (isAdmin) {
-                    actionBtn.title = 'Пометить как удаленную (остается в списке)';
+                    actionBtn.title = 'Пометить как удаленную (установить дату удаления)';
                     actionBtn.style.backgroundColor = '#ff9800';
                 } else {
                     actionBtn.title = 'Удалить запись (скрыть из списка)';
@@ -679,12 +723,22 @@ function formatValue(value) {
     }
 
     if (typeof value === 'string') {
+        // Проверяем, является ли строка датой в формате ISO
         const dateRegex = /^\d{4}-\d{2}-\d{2}/;
         if (dateRegex.test(value)) {
             try {
                 const date = new Date(value);
                 if (!isNaN(date.getTime())) {
-                    return date.toLocaleDateString('ru-RU') + ' ' + date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                    // Для дат удаления возвращаем полное время
+                    if (value.includes('T') && value.length > 10) {
+                        return date.toLocaleDateString('ru-RU') + ' ' +
+                            date.toLocaleTimeString('ru-RU', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            });
+                    }
+                    return date.toLocaleDateString('ru-RU');
                 }
             } catch (e) {
                 // Не удалось распарсить как дату
@@ -738,27 +792,29 @@ function formatHeader(header) {
         'createddate': 'Дата создания',
         'modifieddate': 'Дата изменения',
         'isactive': 'Активен',
-        'dateofrecording': 'Дата записи',
-        'date_of_recording': 'Дата записи',
-        'Date_of_recording': 'Дата записи',
-        'dateofchange': 'Дата изменения',
-        'date_of_change': 'Дата изменения',
-        'Date_of_change': 'Дата изменения',
-        'whorecorded': 'Кто записал',
-        'who_recorded': 'Кто записал',
-        'Who_recorded': 'Кто записал',
+
+        // Служебные поля (показываются только администратору)
+        'dateofrecording': 'Когда создали',
+        'date_of_recording': 'Когда создали',
+        'Date_of_recording': 'Когда создали',
+        'dateofchange': 'Когда изменили',
+        'date_of_change': 'Когда изменили',
+        'Date_of_change': 'Когда изменили',
+        'whorecorded': 'Кто создал',
+        'who_recorded': 'Кто создал',
+        'Who_recorded': 'Кто создал',
         'whochanged': 'Кто изменил',
         'who_changed': 'Кто изменил',
         'Who_changed': 'Кто изменил',
         'whendeleted': 'Когда удалено',
         'WhenDeleted': 'Когда удалено',
         'deletedat': 'Дата удаления',
-        'isdeleted': 'Удален',
+        'isdeleted': 'Удалено',
         'recordedby': 'Записано',
         'changedby': 'Изменено',
-        'createdby': 'Создано',
-        'modifiedby': 'Изменено',
-        'deletedby': 'Удалено',
+        'createdby': 'Создал',
+        'modifiedby': 'Изменил',
+        'deletedby': 'Удалил',
         'createdat': 'Создано',
         'updatedat': 'Обновлено',
         'isdeleted': 'Удалено'
@@ -807,7 +863,8 @@ function viewDetails(data, displayHeaders = null) {
     if (isDeleted && api.isAdmin()) {
         html += '<div style="background-color: #fff0f0; padding: 10px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ff6b6b;">';
         html += '<strong>⚠️ Эта запись удалена</strong><br>';
-        html += '<small>Видна только администраторам</small>';
+        html += '<small>Видна только администраторам. Дата удаления: ' +
+            formatValue(data.WhenDeleted || data.whenDeleted || data.deletedAt) + '</small>';
         html += '</div>';
     }
 
