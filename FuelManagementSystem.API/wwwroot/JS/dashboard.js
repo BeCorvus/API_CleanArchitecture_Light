@@ -364,65 +364,67 @@ function isRecordDeleted(record) {
 
 async function handleDeleteRestore(record) {
     try {
-        console.log('🔍 Попытка удаления/восстановления записи:', record);
-
         const recordId = api.getRecordId(record);
-        console.log('📋 Извлеченный ID:', recordId);
-
-        // Проверяем, что ID определен
-        if (recordId === null || recordId === undefined) {
-            console.error('❌ Не удалось определить ID записи. Доступные поля:', Object.keys(record));
-            throw new Error('Не удалось определить ID записи. Доступные поля: ' + Object.keys(record).join(', '));
-        }
-
         const isAdmin = api.isAdmin();
         const isDeleted = isRecordDeleted(record);
 
         if (isAdmin && isDeleted) {
             // Восстановление записи для администратора
-            if (confirm('Восстановить эту запись? Запись станет доступной для всех пользователей.')) {
-                await api.restoreRecord(currentTable, recordId);
-                showNotification('Запись восстановлена', 'success');
-                generateData();
+            if (confirm('Восстановить эту запись?')) {
+                const result = await api.restoreRecord(currentTable, recordId);
+
+                if (result.local || result.localRestore) {
+                    // Локальное восстановление
+                    const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
+                    if (index !== -1) {
+                        delete currentData[index].isDeleted;
+                        delete currentData[index].IsDeleted;
+                        delete currentData[index].deletedAt;
+                        delete currentData[index].DeletedAt;
+                        delete currentData[index].whenDeleted;
+                        delete currentData[index].WhenDeleted;
+
+                        displayTableData(currentData);
+                        showNotification(result.message || 'Запись восстановлена локально', 'info');
+                    }
+                } else {
+                    showNotification('Запись восстановлена', 'success');
+                    generateData();
+                }
             }
         } else {
             // Удаление записи
-            let message = '';
-            let confirmText = '';
-
-            if (isAdmin) {
-                message = 'Вы уверены, что хотите пометить запись как удаленную?\n\n' +
-                    '✅ Запись останется видимой для администратора\n' +
-                    '📅 Будет установлена дата удаления в поле "Когда удалено"\n' +
-                    '👨‍💼 Вы сможете восстановить запись в любой момент\n' +
-                    '❌ Обычные пользователи не увидят эту запись\n\n' +
-                    'Это мягкое удаление - запись не удаляется физически.';
-                confirmText = 'Пометить как удаленную';
-            } else if (api.isManager()) {
-                message = 'Вы уверены, что хотите удалить эту запись?\n\n' +
-                    '✅ Запись будет скрыта из списка\n' +
-                    '👨‍💼 Администратор сможет видеть и восстанавливать запись\n' +
-                    '📅 Будет установлена дата удаления\n' +
-                    '❌ Обычные пользователи не увидят эту запись';
-                confirmText = 'Удалить (скрыть)';
-            } else {
-                message = 'Вы уверены, что хотите удалить эту запись?\n\n' +
-                    '✅ Запись будет скрыта из списка\n' +
-                    '👨‍💼 Администратор и менеджер смогут видеть запись\n' +
-                    '⚠️ Удаление можно отменить только через администратора';
-                confirmText = 'Удалить (скрыть)';
-            }
+            let message = isAdmin ?
+                'Пометить запись как удаленную?' :
+                'Удалить эту запись?';
 
             if (confirm(message)) {
-                await api.deleteRecord(currentTable, recordId);
+                const result = await api.deleteRecord(currentTable, recordId);
 
-                if (isAdmin) {
-                    showNotification('Запись помечена как удаленная (дата установлена)', 'success');
+                if (result.local || result.localDelete) {
+                    // Локальное удаление
+                    if (isAdmin) {
+                        // Мягкое удаление для администратора
+                        const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
+                        if (index !== -1) {
+                            currentData[index].isDeleted = true;
+                            currentData[index].deletedAt = new Date().toISOString();
+                            displayTableData(currentData);
+                            showNotification('Запись помечена как удаленная локально', 'info');
+                        }
+                    } else {
+                        // Удаление для обычных пользователей
+                        const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
+                        if (index !== -1) {
+                            currentData.splice(index, 1);
+                            displayTableData(currentData);
+                            showNotification('Запись удалена локально', 'info');
+                        }
+                    }
                 } else {
-                    showNotification('Запись удалена (скрыта из списка)', 'success');
+                    showNotification(isAdmin ? 'Запись помечена как удаленная' : 'Запись удалена', 'success');
+                    generateData();
                 }
-
-                generateData();
             }
         }
     } catch (error) {

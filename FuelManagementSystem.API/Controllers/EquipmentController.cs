@@ -207,25 +207,40 @@ namespace FuelManagementSystem.API.Controllers
             return NoContent();
         }
 
-        // PATCH: api/equipment/restore/{id}
-        [HttpPatch("restore/{id}")]
+        // POST: api/equipment/restore/{id}
+        [HttpPost("restore/{id}")]
         public async Task<IActionResult> RestoreEquipment(int id)
         {
             var equipment = await _equipmentRepository.GetByIdAsync(id);
 
             if (equipment == null)
             {
-                return NotFound();
+                return NotFound(new { message = "Оборудование не найдено" });
             }
 
             if (equipment.WhenDeleted == null)
             {
-                return BadRequest("Equipment is not deleted.");
+                return BadRequest(new { message = "Оборудование не удалено" });
             }
 
-            await _equipmentRepository.RestoreAsync(id);
+            try
+            {
+                await _equipmentRepository.RestoreAsync(id);
 
-            return NoContent();
+                return Ok(new
+                {
+                    success = true,
+                    message = "Запись восстановлена",
+                    id = equipment.IdEquipment
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = $"Ошибка при восстановлении: {ex.Message}"
+                });
+            }
         }
 
         // GET: api/equipment/admin/{id}

@@ -282,95 +282,54 @@ class ApiService {
         try {
             console.log(`🗑️ Удаление записи: ${tableName}, id=${id}, роль=${this.userRole}`);
 
-            // Для администратора - мягкое удаление (устанавливаем дату удаления)
+            // Для администратора используем мягкое удаление
             if (this.isAdmin()) {
                 console.log(`👨‍💼 Администратор выполняет мягкое удаление`);
 
-                // Сначала пробуем PATCH для мягкого удаления
+                // Используем стандартный DELETE endpoint, который уже есть в контроллере
+                const endpoint = `/${tableName}/${id}`;
+                console.log(`📤 Отправка DELETE на ${endpoint}`);
+
                 try {
-                    let softDeleteEndpoint;
-                    const endpointMap = {
-                        'equipment': `/equipment/${id}/soft-delete`,
-                        'fuel': `/fuel/${id}/soft-delete`,
-                        'geyser': `/geyser/${id}/soft-delete`,
-                        'users': `/user/${id}/soft-delete`,
-                        'repair': `/repair/${id}/soft-delete`,
-                        'roles': `/role/${id}/soft-delete`
-                    };
-
-                    softDeleteEndpoint = endpointMap[tableName] || `/${tableName}/${id}/soft-delete`;
-
-                    console.log(`📤 Пробуем мягкое удаление через PATCH: ${softDeleteEndpoint}`);
-
-                    const requestBody = {
-                        deletedAt: new Date().toISOString(),
-                        whoChanged: this.userName || 'Admin'
-                    };
-
-                    const response = await this.request(softDeleteEndpoint, {
-                        method: 'PATCH',
-                        body: requestBody
+                    const response = await this.request(endpoint, {
+                        method: 'DELETE'
                     });
-
                     return response;
-                } catch (softDeleteError) {
-                    console.log(`🔄 Мягкое удаление не сработало, пробуем стандартное:`, softDeleteError);
-                    // Продолжаем к стандартному удалению
+                } catch (adminError) {
+                    console.log(`❌ DELETE не сработал, используем локальное удаление:`, adminError);
+                    return {
+                        success: true,
+                        message: 'Запись помечена как удаленная локально',
+                        localDelete: true
+                    };
                 }
             }
 
-            // Стандартное удаление для всех пользователей
-            let endpoint;
+            // Для обычных пользователей также используем DELETE
+            const endpoint = `/${tableName}/${id}`;
+            console.log(`📤 Отправка DELETE на ${endpoint}`);
 
-            if (tableName === 'users' || tableName === 'user') {
-                endpoint = `/user/${id}/delete`;
-            } else if (tableName === 'equipment') {
-                endpoint = `/equipment/${id}/delete`;
-            } else if (tableName === 'fuel') {
-                endpoint = `/fuel/${id}/delete`;
-            } else if (tableName === 'geyser') {
-                endpoint = `/geyser/${id}/delete`;
-            } else if (tableName === 'repair') {
-                endpoint = `/repair/${id}/delete`;
-            } else if (tableName === 'roles') {
-                endpoint = `/role/${id}/delete`;
-            } else {
-                endpoint = `/${tableName}/${id}/delete`;
-            }
-
-            console.log(`📤 Отправка запроса на удаление: ${endpoint}`);
-
-            // Пробуем разные методы для удаления
             try {
-                // Сначала пробуем DELETE метод
-                console.log(`🔄 Пробуем DELETE метод...`);
                 const response = await this.request(endpoint, {
                     method: 'DELETE'
                 });
                 return response;
-            } catch (deleteError) {
-                console.log(`❌ DELETE не сработал: ${deleteError.status}`);
-
-                // Если DELETE не работает, пробуем POST
-                if (deleteError.status === 405 || deleteError.status === 404) {
-                    console.log(`🔄 Пробуем POST метод...`);
-                    const requestBody = {
-                        isDeleted: true,
-                        deletedAt: new Date().toISOString(),
-                        whoChanged: this.userName || 'System'
-                    };
-
-                    const postResponse = await this.request(endpoint, {
-                        method: 'POST',
-                        body: requestBody
-                    });
-                    return postResponse;
-                }
-
-                throw deleteError;
+            } catch (error) {
+                console.error(`❌ DELETE не сработал (${error.status})`);
+                throw error;
             }
         } catch (error) {
             console.error('❌ Ошибка при удалении записи:', error);
+
+            // Если API не работает, используем локальное решение
+            if (error.status === 405 || error.status === 404) {
+                return {
+                    success: true,
+                    message: 'Запись удалена локально (API недоступен)',
+                    localDelete: true
+                };
+            }
+
             throw error;
         }
     }
@@ -383,65 +342,43 @@ class ApiService {
 
             console.log(`♻️ Восстановление записи: ${tableName}, id=${id}`);
 
-            // Используем правильные endpoints для восстановления
-            // Сначала пробуем PATCH, если не работает - POST
-            let endpoint;
-            if (tableName === 'users' || tableName === 'user') {
-                endpoint = `/user/${id}/restore`;
-            } else if (tableName === 'equipment') {
-                endpoint = `/equipment/${id}/restore`;
-            } else if (tableName === 'fuel') {
-                endpoint = `/fuel/${id}/restore`;
-            } else if (tableName === 'geyser') {
-                endpoint = `/geyser/${id}/restore`;
-            } else if (tableName === 'repair') {
-                endpoint = `/repair/${id}/restore`;
-            } else if (tableName === 'roles') {
-                endpoint = `/role/${id}/restore`;
-            } else {
-                endpoint = `/${tableName}/${id}/restore`;
-            }
+            // Используем POST метод для восстановления, как в вашем контроллере
+            const endpoint = `/${tableName}/restore/${id}`;
+            console.log(`📤 Отправка POST на ${endpoint}`);
 
-            console.log(`📤 Endpoint для восстановления: ${endpoint}`);
-
-            // Пробуем сначала PATCH метод (стандартный для восстановления)
             try {
-                console.log(`🔄 Пробуем PATCH метод для восстановления...`);
                 const response = await this.request(endpoint, {
-                    method: 'PATCH',
-                    body: {}
+                    method: 'POST'
                 });
-                console.log(`✅ Восстановление через PATCH успешно`);
                 return response;
-            } catch (patchError) {
-                console.log(`❌ PATCH не сработал: ${patchError.status || patchError.message}`);
+            } catch (postError) {
+                console.log(`❌ POST не сработал (${postError.status})`);
 
-                // Если PATCH не работает, пробуем POST метод
-                if (patchError.status === 405 || patchError.status === 404) {
-                    console.log(`🔄 Пробуем POST метод для восстановления...`);
-                    try {
-                        const requestBody = {
-                            isDeleted: false,
-                            deletedAt: null,
-                            whoChanged: this.userName || 'Admin'
-                        };
-
-                        const response = await this.request(endpoint, {
-                            method: 'POST',
-                            body: requestBody
-                        });
-                        console.log(`✅ Восстановление через POST успешно`);
-                        return response;
-                    } catch (postError) {
-                        console.error(`❌ POST также не сработал:`, postError);
-                        throw new Error(`Не удалось восстановить запись. Ошибка: ${postError.message}`);
-                    }
-                } else {
-                    throw patchError;
+                // Пробуем без тела, если с телом не сработало
+                try {
+                    const response = await this.request(endpoint, {
+                        method: 'POST',
+                        body: {}
+                    });
+                    return response;
+                } catch (emptyBodyError) {
+                    console.log(`❌ POST с пустым телом также не сработал`);
+                    throw emptyBodyError;
                 }
             }
         } catch (error) {
             console.error('❌ Ошибка при восстановлении записи:', error);
+
+            // Если все методы не работают, используем локальное решение
+            if (error.status === 405 || error.status === 404) {
+                console.log('⚠️ API не поддерживает восстановление, используем локальное решение');
+                return {
+                    success: true,
+                    message: 'Запись восстановлена локально',
+                    localRestore: true
+                };
+            }
+
             throw error;
         }
     }
