@@ -1010,10 +1010,6 @@ tr:hover {
     font-size: 14px;
 }
 
-.view-btn::before {
-    content: "👁️";
-}
-
 .action-btn.admin-delete-btn::before {
     content: "🗑️";
 }

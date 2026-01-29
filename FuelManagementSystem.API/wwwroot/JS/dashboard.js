@@ -1,4 +1,6 @@
-﻿let currentTable = '';
+﻿[file name]: dashboard.js
+[file content begin]
+let currentTable = '';
 let currentData = [];
 
 // Инициализация при загрузке страницы
@@ -433,6 +435,237 @@ async function handleDeleteRestore(record) {
     }
 }
 
+// Новая функция для редактирования записи
+async function handleEditRecord(record) {
+    try {
+        const recordId = api.getRecordId(record);
+        const isAdmin = api.isAdmin();
+        const isDeleted = isRecordDeleted(record);
+
+        if (isDeleted) {
+            if (isAdmin) {
+                if (!confirm('Эта запись удалена. Хотите восстановить и редактировать её?')) {
+                    return;
+                }
+                // Восстановление записи для администратора
+                const result = await api.restoreRecord(currentTable, recordId);
+                if (result.local || result.localRestore) {
+                    // Локальное восстановление
+                    const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
+                    if (index !== -1) {
+                        delete currentData[index].isDeleted;
+                        delete currentData[index].IsDeleted;
+                        delete currentData[index].deletedAt;
+                        delete currentData[index].DeletedAt;
+                        delete currentData[index].whenDeleted;
+                        delete currentData[index].WhenDeleted;
+                    }
+                }
+            } else {
+                showNotification('Нельзя редактировать удаленную запись', 'error');
+                return;
+            }
+        }
+
+        // Открываем модальное окно для редактирования
+        showEditModal(record);
+
+    } catch (error) {
+        console.error('❌ Ошибка при подготовке к редактированию:', error);
+        showNotification(`Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Функция для отображения модального окна редактирования
+function showEditModal(record) {
+    const modal = document.getElementById('editModal');
+    if (!modal) {
+        createEditModal();
+    }
+
+    const modalContent = document.getElementById('editModalContent');
+    const recordId = api.getRecordId(record);
+
+    let html = `<h3>Редактирование записи (ID: ${recordId})</h3>`;
+    html += '<form id="editForm" class="edit-form">';
+
+    // Определяем, какие поля показывать для редактирования
+    const hiddenFields = getHiddenFieldsForRole();
+    const fieldsToEdit = Object.keys(record).filter(key =>
+        !hiddenFields.includes(key.toLowerCase())
+    );
+
+    // Для не-администраторов скрываем ID поля
+    if (shouldHideIdColumns()) {
+        fieldsToEdit.filter(key => !isIdColumn(key));
+    }
+
+    // Сортируем поля для администратора
+    const sortedFields = api.isAdmin() ? sortHeadersForAdmin(fieldsToEdit) : fieldsToEdit;
+
+    // Создаем поля формы
+    sortedFields.forEach(key => {
+        const value = record[key];
+        const formattedValue = formatValue(value);
+        const label = formatHeader(key);
+
+        html += `
+            <div class="form-group">
+                <label for="${key}">${label}:</label>
+        `;
+
+        // Определяем тип поля
+        if (typeof value === 'boolean') {
+            html += `
+                <select id="${key}" name="${key}" class="form-input">
+                    <option value="true" ${value === true ? 'selected' : ''}>Да</option>
+                    <option value="false" ${value === false ? 'selected' : ''}>Нет</option>
+                </select>
+            `;
+        } else if (isDateField(key, value)) {
+            html += `
+                <input type="datetime-local" id="${key}" name="${key}" 
+                       value="${formatDateForInput(value)}" class="form-input">
+            `;
+        } else if (isIdColumn(key)) {
+            html += `
+                <input type="text" id="${key}" name="${key}" 
+                       value="${formattedValue}" class="form-input" readonly>
+                <small>ID нельзя изменить</small>
+            `;
+        } else if (key.toLowerCase() === 'password') {
+            html += `
+                <input type="password" id="${key}" name="${key}" 
+                       placeholder="Оставьте пустым, чтобы не менять" class="form-input">
+            `;
+        } else {
+            html += `
+                <input type="text" id="${key}" name="${key}" 
+                       value="${formattedValue}" class="form-input">
+            `;
+        }
+
+        html += '</div>';
+    });
+
+    html += `
+        <div class="modal-actions">
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Отмена</button>
+        </div>
+    `;
+
+    html += '</form>';
+    modalContent.innerHTML = html;
+
+    // Показываем модальное окно
+    modal.style.display = 'flex';
+
+    // Обработка отправки формы
+    const form = document.getElementById('editForm');
+    form.onsubmit = async function (e) {
+        e.preventDefault();
+        await submitEditForm(recordId, form);
+    };
+}
+
+// Функция для создания модального окна редактирования
+function createEditModal() {
+    const modal = document.createElement('div');
+    modal.id = 'editModal';
+    modal.className = 'modal';
+
+    modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeEditModal()">&times;</span>
+            <div id="editModalContent"></div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Закрытие по клику вне модального окна
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) {
+            closeEditModal();
+        }
+    });
+}
+
+// Функция для отправки формы редактирования
+async function submitEditForm(recordId, form) {
+    try {
+        const formData = new FormData(form);
+        const data = {};
+
+        // Преобразуем FormData в объект
+        for (let [key, value] of formData.entries()) {
+            if (value !== '') { // Не отправляем пустые значения
+                data[key] = value;
+            }
+        }
+
+        // Удаляем поля с readonly (например, ID)
+        Object.keys(data).forEach(key => {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input && input.readOnly) {
+                delete data[key];
+            }
+        });
+
+        console.log('📤 Отправка данных для редактирования:', data);
+
+        // Отправляем запрос на обновление
+        const result = await api.updateRecord(currentTable, recordId, data);
+
+        if (result) {
+            showNotification('Запись успешно обновлена', 'success');
+            closeEditModal();
+            generateData(); // Обновляем таблицу
+        }
+    } catch (error) {
+        console.error('❌ Ошибка при обновлении записи:', error);
+        showNotification(`Ошибка при обновлении: ${error.message}`, 'error');
+    }
+}
+
+// Функция для закрытия модального окна редактирования
+function closeEditModal() {
+    const modal = document.getElementById('editModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Вспомогательная функция для определения полей с датой
+function isDateField(key, value) {
+    if (!value) return false;
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}/;
+    const dateFields = ['date', 'created', 'updated', 'deleted', 'lastlogin', 'when'];
+
+    const isDateString = typeof value === 'string' && dateRegex.test(value);
+    const hasDateInName = dateFields.some(field => key.toLowerCase().includes(field));
+
+    return isDateString || hasDateInName;
+}
+
+// Вспомогательная функция для форматирования даты для input[type="datetime-local"]
+function formatDateForInput(dateString) {
+    if (!dateString) return '';
+
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString;
+
+        // Преобразуем в формат YYYY-MM-DDTHH:mm
+        return date.toISOString().slice(0, 16);
+    } catch (e) {
+        return dateString;
+    }
+}
+
+// Обновляем функцию displayTableData для добавления кнопки редактирования
 function displayTableData(data) {
     const tableHeader = document.getElementById('tableHeader');
     const tableBody = document.getElementById('tableBody');
@@ -496,11 +729,7 @@ function displayTableData(data) {
             th.title = 'Служебное поле';
 
             // Добавляем иконку для служебных полей
-            const iconSpan = document.createElement('span');
-            iconSpan.textContent = ' 🔧';
-            iconSpan.style.fontSize = '12px';
-            iconSpan.style.marginLeft = '5px';
-            th.appendChild(iconSpan);
+
         }
 
         // Стиль для ID полей администратора
@@ -515,7 +744,7 @@ function displayTableData(data) {
 
     const actionsTh = document.createElement('th');
     actionsTh.textContent = 'Действия';
-    actionsTh.style.width = '150px';
+    actionsTh.style.width = '200px'; // Увеличиваем ширину для трех кнопок
     actionsTh.style.textAlign = 'center';
     headerRow.appendChild(actionsTh);
 
@@ -635,14 +864,15 @@ function displayTableData(data) {
             actionsTd.className = 'actions-cell';
             actionsTd.style.textAlign = 'center';
             actionsTd.style.display = 'flex';
-            actionsTd.style.gap = '5px';
+            actionsTd.style.gap = '8px'; // Увеличиваем отступ между кнопками
             actionsTd.style.justifyContent = 'center';
             actionsTd.style.alignItems = 'center';
+            actionsTd.style.flexWrap = 'wrap';
 
             // Кнопка просмотра
             const viewBtn = document.createElement('button');
             viewBtn.className = 'action-btn view-btn';
-            viewBtn.textContent = '👁️';
+            viewBtn.textContent = '👁';
             viewBtn.title = 'Просмотреть подробности';
             viewBtn.style.cssText = `
                 padding: 5px 10px;
@@ -653,6 +883,7 @@ function displayTableData(data) {
                 color: white;
                 font-size: 14px;
                 min-width: 40px;
+                flex: 1;
             `;
 
             if (isAdmin && isDeleted) {
@@ -661,6 +892,30 @@ function displayTableData(data) {
 
             viewBtn.onclick = () => viewDetails(row, displayHeaders);
             actionsTd.appendChild(viewBtn);
+
+            // Кнопка редактирования
+            const editBtn = document.createElement('button');
+            editBtn.className = 'action-btn edit-btn';
+            editBtn.textContent = '✏️';
+            editBtn.title = 'Редактировать запись';
+            editBtn.style.cssText = `
+                padding: 5px 10px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                background-color: ${isAdmin && isDeleted ? '#6c757d' : '#FF9800'};
+                color: white;
+                font-size: 14px;
+                min-width: 40px;
+                flex: 1;
+            `;
+
+            if (isAdmin && isDeleted) {
+                editBtn.title = 'Восстановить и редактировать удаленную запись';
+            }
+
+            editBtn.onclick = () => handleEditRecord(row);
+            actionsTd.appendChild(editBtn);
 
             // Кнопка удаления/восстановления
             const actionBtn = document.createElement('button');
@@ -673,6 +928,7 @@ function displayTableData(data) {
                 color: white;
                 font-size: 14px;
                 min-width: 40px;
+                flex: 1;
             `;
 
             if (isAdmin && isDeleted) {
@@ -687,7 +943,7 @@ function displayTableData(data) {
 
                 if (isAdmin) {
                     actionBtn.title = 'Пометить как удаленную (установить дату удаления)';
-                    actionBtn.style.backgroundColor = '#ff9800';
+                    actionBtn.style.backgroundColor = '#f44336';
                 } else {
                     actionBtn.title = 'Удалить запись (скрыть из списка)';
                     actionBtn.style.backgroundColor = '#f44336';
@@ -881,7 +1137,7 @@ function viewDetails(data, displayHeaders = null) {
         html += `
             <div class="detail-row">
                 <span class="detail-label ${isService || isId ? 'admin-label' : ''}">
-                    ${isService ? '🔧 ' : ''}${isId ? '🆔 ' : ''}${formatHeader(key)}:
+                    ${isId ? '🆔 ' : ''}${formatHeader(key)}:
                 </span>
                 <span class="detail-value ${isService || isId ? 'admin-value' : ''}">
                     ${value}
@@ -948,3 +1204,6 @@ window.generateData = generateData;
 window.refreshData = refreshData;
 window.viewDetails = viewDetails;
 window.closeModal = closeModal;
+window.closeEditModal = closeEditModal; // Экспортируем новую функцию
+window.handleEditRecord = handleEditRecord; // Экспортируем функцию редактирования
+[file content end]

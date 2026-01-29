@@ -269,3 +269,73 @@ body {
     gap: 10px;
 }
 
+/* Добавьте в конец style.css */
+
+/* Стили для кнопки редактирования */
+.edit-btn {
+    background-color: #FF9800 !important;
+}
+
+    .edit-btn:hover {
+        background-color: #F57C00 !important;
+    }
+
+/* Стили для формы редактирования */
+.edit-form {
+    margin-top: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+    }
+
+.form-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+    .form-input:focus {
+        border-color: #4CAF50;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+    }
+
+    .form-input[readonly] {
+        background-color: #f5f5f5;
+        cursor: not-allowed;
+    }
+
+.edit-form select.form-input {
+    background-color: white;
+    cursor: pointer;
+}
+
+.edit-form small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 12px;
+}
+
+/* Адаптивность для модального окна редактирования */
+@media (max-width: 768px) {
+    .edit-form .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-input {
+        padding: 8px;
+        font-size: 14px;
+    }
+}

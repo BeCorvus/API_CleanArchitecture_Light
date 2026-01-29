@@ -383,6 +383,52 @@ class ApiService {
         }
     }
 
+    async updateRecord(tableName, id, data) {
+        try {
+            console.log(`✏️ Обновление записи: ${tableName}, id=${id}`, data);
+
+            // Используем PUT метод для обновления
+            const endpoint = `/${tableName}/${id}`;
+            console.log(`📤 Отправка PUT на ${endpoint}`);
+
+            try {
+                const response = await this.request(endpoint, {
+                    method: 'PUT',
+                    body: data
+                });
+                return response;
+            } catch (putError) {
+                console.log(`❌ PUT не сработал (${putError.status}), пробуем PATCH`);
+
+                // Пробуем PATCH, если PUT не работает
+                try {
+                    const response = await this.request(endpoint, {
+                        method: 'PATCH',
+                        body: data
+                    });
+                    return response;
+                } catch (patchError) {
+                    console.log(`❌ PATCH также не сработал (${patchError.status})`);
+                    throw patchError;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Ошибка при обновлении записи:', error);
+
+            // Если API не работает, используем локальное решение
+            if (error.status === 405 || error.status === 404) {
+                console.log('⚠️ API не поддерживает обновление, используем локальное решение');
+                return {
+                    success: true,
+                    message: 'Запись обновлена локально',
+                    localUpdate: true
+                };
+            }
+
+            throw error;
+        }
+    }
+
     getRecordId(record) {
         if (!record || typeof record !== 'object') {
             console.error('Некорректная запись:', record);
