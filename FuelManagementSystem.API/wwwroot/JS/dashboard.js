@@ -1,9 +1,6 @@
-﻿[file name]: dashboard.js
-[file content begin]
-let currentTable = '';
+﻿let currentTable = '';
 let currentData = [];
 
-// Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function () {
     checkAuth();
     setupEventListeners();
@@ -48,10 +45,8 @@ function getHiddenFieldsForRole() {
     const isAdmin = api.isAdmin();
 
     if (isAdmin) {
-        // Администратор видит ВСЕ поля, скрываем только чувствительные данные
         return ['passwordHash', 'resetToken', 'resetTokenExpiry', 'password'];
     } else {
-        // Не-администраторы не видят служебные поля
         return [
             'passwordHash', 'resetToken', 'resetTokenExpiry', 'password',
             'dateOfRecording', 'dateOfChange', 'whoRecorded',
@@ -67,7 +62,6 @@ function getHiddenFieldsForRole() {
 
 function shouldHideIdColumns() {
     const isAdmin = api.isAdmin();
-    // Администратор видит ID поля, остальные - нет
     return !isAdmin;
 }
 
@@ -317,7 +311,6 @@ async function generateData() {
             tableContainer.style.display = 'none';
             showNotification('Данные не найдены', 'info');
         } else {
-            // Отладочная информация о полях
             console.log(`📋 Поля первой записи для ${currentTable}:`, Object.keys(currentData[0]));
             console.log(`👁️ Администратор: ${api.isAdmin()}, Видит служебные поля: ${api.isAdmin() ? 'Да' : 'Нет'}`);
 
@@ -371,12 +364,10 @@ async function handleDeleteRestore(record) {
         const isDeleted = isRecordDeleted(record);
 
         if (isAdmin && isDeleted) {
-            // Восстановление записи для администратора
             if (confirm('Восстановить эту запись?')) {
                 const result = await api.restoreRecord(currentTable, recordId);
 
                 if (result.local || result.localRestore) {
-                    // Локальное восстановление
                     const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
                     if (index !== -1) {
                         delete currentData[index].isDeleted;
@@ -395,7 +386,6 @@ async function handleDeleteRestore(record) {
                 }
             }
         } else {
-            // Удаление записи
             let message = isAdmin ?
                 'Пометить запись как удаленную?' :
                 'Удалить эту запись?';
@@ -404,9 +394,7 @@ async function handleDeleteRestore(record) {
                 const result = await api.deleteRecord(currentTable, recordId);
 
                 if (result.local || result.localDelete) {
-                    // Локальное удаление
                     if (isAdmin) {
-                        // Мягкое удаление для администратора
                         const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
                         if (index !== -1) {
                             currentData[index].isDeleted = true;
@@ -415,7 +403,6 @@ async function handleDeleteRestore(record) {
                             showNotification('Запись помечена как удаленная локально', 'info');
                         }
                     } else {
-                        // Удаление для обычных пользователей
                         const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
                         if (index !== -1) {
                             currentData.splice(index, 1);
@@ -435,7 +422,6 @@ async function handleDeleteRestore(record) {
     }
 }
 
-// Новая функция для редактирования записи
 async function handleEditRecord(record) {
     try {
         const recordId = api.getRecordId(record);
@@ -447,10 +433,8 @@ async function handleEditRecord(record) {
                 if (!confirm('Эта запись удалена. Хотите восстановить и редактировать её?')) {
                     return;
                 }
-                // Восстановление записи для администратора
                 const result = await api.restoreRecord(currentTable, recordId);
                 if (result.local || result.localRestore) {
-                    // Локальное восстановление
                     const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
                     if (index !== -1) {
                         delete currentData[index].isDeleted;
@@ -467,7 +451,6 @@ async function handleEditRecord(record) {
             }
         }
 
-        // Открываем модальное окно для редактирования
         showEditModal(record);
 
     } catch (error) {
@@ -476,7 +459,6 @@ async function handleEditRecord(record) {
     }
 }
 
-// Функция для отображения модального окна редактирования
 function showEditModal(record) {
     const modal = document.getElementById('editModal');
     if (!modal) {
@@ -486,61 +468,56 @@ function showEditModal(record) {
     const modalContent = document.getElementById('editModalContent');
     const recordId = api.getRecordId(record);
 
-    let html = `<h3>Редактирование записи (ID: ${recordId})</h3>`;
+    let html = `<h3>Редактирование записи</h3>`;
     html += '<form id="editForm" class="edit-form">';
 
-    // Определяем, какие поля показывать для редактирования
     const hiddenFields = getHiddenFieldsForRole();
-    const fieldsToEdit = Object.keys(record).filter(key =>
+    let fieldsToEdit = Object.keys(record).filter(key =>
         !hiddenFields.includes(key.toLowerCase())
     );
 
-    // Для не-администраторов скрываем ID поля
     if (shouldHideIdColumns()) {
-        fieldsToEdit.filter(key => !isIdColumn(key));
+        fieldsToEdit = fieldsToEdit.filter(key => !isIdColumn(key));
     }
 
-    // Сортируем поля для администратора
     const sortedFields = api.isAdmin() ? sortHeadersForAdmin(fieldsToEdit) : fieldsToEdit;
 
-    // Создаем поля формы
     sortedFields.forEach(key => {
         const value = record[key];
-        const formattedValue = formatValue(value);
-        const label = formatHeader(key);
+        const formattedValue = escapeHtml(formatValue(value));
+        const label = escapeHtml(formatHeader(key));
 
         html += `
             <div class="form-group">
-                <label for="${key}">${label}:</label>
+                <label for="${escapeHtml(key)}">${label}:</label>
         `;
 
-        // Определяем тип поля
         if (typeof value === 'boolean') {
             html += `
-                <select id="${key}" name="${key}" class="form-input">
+                <select id="${escapeHtml(key)}" name="${escapeHtml(key)}" class="form-input">
                     <option value="true" ${value === true ? 'selected' : ''}>Да</option>
                     <option value="false" ${value === false ? 'selected' : ''}>Нет</option>
                 </select>
             `;
         } else if (isDateField(key, value)) {
             html += `
-                <input type="datetime-local" id="${key}" name="${key}" 
-                       value="${formatDateForInput(value)}" class="form-input">
+                <input type="datetime-local" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
+                       value="${escapeHtml(formatDateForInput(value))}" class="form-input">
             `;
         } else if (isIdColumn(key)) {
             html += `
-                <input type="text" id="${key}" name="${key}" 
+                <input type="text" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
                        value="${formattedValue}" class="form-input" readonly>
                 <small>ID нельзя изменить</small>
             `;
         } else if (key.toLowerCase() === 'password') {
             html += `
-                <input type="password" id="${key}" name="${key}" 
+                <input type="password" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
                        placeholder="Оставьте пустым, чтобы не менять" class="form-input">
             `;
         } else {
             html += `
-                <input type="text" id="${key}" name="${key}" 
+                <input type="text" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
                        value="${formattedValue}" class="form-input">
             `;
         }
@@ -558,10 +535,8 @@ function showEditModal(record) {
     html += '</form>';
     modalContent.innerHTML = html;
 
-    // Показываем модальное окно
     modal.style.display = 'flex';
 
-    // Обработка отправки формы
     const form = document.getElementById('editForm');
     form.onsubmit = async function (e) {
         e.preventDefault();
@@ -569,7 +544,6 @@ function showEditModal(record) {
     };
 }
 
-// Функция для создания модального окна редактирования
 function createEditModal() {
     const modal = document.createElement('div');
     modal.id = 'editModal';
@@ -584,7 +558,6 @@ function createEditModal() {
 
     document.body.appendChild(modal);
 
-    // Закрытие по клику вне модального окна
     modal.addEventListener('click', function (event) {
         if (event.target === modal) {
             closeEditModal();
@@ -592,20 +565,17 @@ function createEditModal() {
     });
 }
 
-// Функция для отправки формы редактирования
 async function submitEditForm(recordId, form) {
     try {
         const formData = new FormData(form);
         const data = {};
 
-        // Преобразуем FormData в объект
         for (let [key, value] of formData.entries()) {
-            if (value !== '') { // Не отправляем пустые значения
+            if (value !== '') {
                 data[key] = value;
             }
         }
 
-        // Удаляем поля с readonly (например, ID)
         Object.keys(data).forEach(key => {
             const input = form.querySelector(`[name="${key}"]`);
             if (input && input.readOnly) {
@@ -615,13 +585,12 @@ async function submitEditForm(recordId, form) {
 
         console.log('📤 Отправка данных для редактирования:', data);
 
-        // Отправляем запрос на обновление
         const result = await api.updateRecord(currentTable, recordId, data);
 
         if (result) {
             showNotification('Запись успешно обновлена', 'success');
             closeEditModal();
-            generateData(); // Обновляем таблицу
+            generateData();
         }
     } catch (error) {
         console.error('❌ Ошибка при обновлении записи:', error);
@@ -629,7 +598,6 @@ async function submitEditForm(recordId, form) {
     }
 }
 
-// Функция для закрытия модального окна редактирования
 function closeEditModal() {
     const modal = document.getElementById('editModal');
     if (modal) {
@@ -637,7 +605,6 @@ function closeEditModal() {
     }
 }
 
-// Вспомогательная функция для определения полей с датой
 function isDateField(key, value) {
     if (!value) return false;
 
@@ -650,7 +617,6 @@ function isDateField(key, value) {
     return isDateString || hasDateInName;
 }
 
-// Вспомогательная функция для форматирования даты для input[type="datetime-local"]
 function formatDateForInput(dateString) {
     if (!dateString) return '';
 
@@ -658,14 +624,12 @@ function formatDateForInput(dateString) {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return dateString;
 
-        // Преобразуем в формат YYYY-MM-DDTHH:mm
         return date.toISOString().slice(0, 16);
     } catch (e) {
         return dateString;
     }
 }
 
-// Обновляем функцию displayTableData для добавления кнопки редактирования
 function displayTableData(data) {
     const tableHeader = document.getElementById('tableHeader');
     const tableBody = document.getElementById('tableBody');
@@ -683,31 +647,26 @@ function displayTableData(data) {
     console.log(`📊 Отображение данных: ${data.length} записей, ${headers.length} полей`);
     console.log('🔍 Все поля:', headers);
 
-    // Получаем поля для скрытия
     const hiddenFields = getHiddenFieldsForRole();
     console.log(`👁️ Скрытые поля для роли ${api.userRole}:`, hiddenFields);
 
-    // Сначала фильтруем скрытые поля
     let displayHeaders = headers.filter(header =>
         !hiddenFields.includes(header.toLowerCase())
     );
 
     console.log(`👁️ Поля после скрытия: ${displayHeaders.length}`, displayHeaders);
 
-    // Фильтрация ID столбцов для не-администраторов
     if (shouldHideIdColumns()) {
         const beforeFilterCount = displayHeaders.length;
         displayHeaders = displayHeaders.filter(header => !isIdColumn(header));
         console.log(`🆔 Отфильтровано ID полей: ${beforeFilterCount - displayHeaders.length}`);
     }
 
-    // Для администратора сортируем заголовки - служебные поля в конце
     displayHeaders = sortHeadersForAdmin(displayHeaders);
     console.log(`🔧 Отсортированные заголовки:`, displayHeaders);
 
     const headerRow = document.createElement('tr');
 
-    // Столбец с нумерацией
     const numberTh = document.createElement('th');
     numberTh.textContent = '№';
     numberTh.style.width = '60px';
@@ -718,7 +677,6 @@ function displayTableData(data) {
         const th = document.createElement('th');
         th.textContent = formatHeader(header);
 
-        // Добавляем классы для служебных полей администратора
         const order = getServiceFieldOrder(header);
         const isServiceField = order < 999;
 
@@ -727,12 +685,8 @@ function displayTableData(data) {
             th.style.backgroundColor = '#e8f5e9';
             th.style.borderLeft = '2px solid #4caf50';
             th.title = 'Служебное поле';
-
-            // Добавляем иконку для служебных полей
-
         }
 
-        // Стиль для ID полей администратора
         if (api.isAdmin() && isIdColumn(header)) {
             th.style.backgroundColor = '#fff0f0';
             th.style.color = '#990000';
@@ -744,7 +698,7 @@ function displayTableData(data) {
 
     const actionsTh = document.createElement('th');
     actionsTh.textContent = 'Действия';
-    actionsTh.style.width = '200px'; // Увеличиваем ширину для трех кнопок
+    actionsTh.style.width = '200px';
     actionsTh.style.textAlign = 'center';
     headerRow.appendChild(actionsTh);
 
@@ -753,16 +707,13 @@ function displayTableData(data) {
     data.forEach((row, rowIndex) => {
         const tableRow = document.createElement('tr');
 
-        // Проверяем, удалена ли запись
         const isDeleted = isRecordDeleted(row);
         const isAdmin = api.isAdmin();
 
-        // Для администратора показываем ВСЕ записи, для остальных - только неудаленные
         if (!isAdmin && isDeleted) {
-            return; // Пропускаем удаленные записи для не-администраторов
+            return;
         }
 
-        // Для администратора: выделяем удаленные записи
         if (isAdmin && isDeleted) {
             tableRow.classList.add('admin-deleted-record');
             tableRow.style.backgroundColor = '#fff8f8';
@@ -770,14 +721,12 @@ function displayTableData(data) {
             tableRow.style.opacity = '0.9';
         }
 
-        // Ячейка с номером строки
         const numberTd = document.createElement('td');
         numberTd.textContent = rowIndex + 1;
         numberTd.style.textAlign = 'center';
         numberTd.style.fontWeight = 'bold';
         numberTd.style.backgroundColor = isAdmin && isDeleted ? '#ffe6e6' : '#f8f9fa';
 
-        // Для администратора добавляем индикатор удаленной записи
         if (isAdmin && isDeleted) {
             const indicator = document.createElement('span');
             indicator.className = 'deleted-indicator';
@@ -799,31 +748,25 @@ function displayTableData(data) {
         displayHeaders.forEach((header, colIndex) => {
             const td = document.createElement('td');
             let value = row[header];
-            value = formatValue(value);
+            value = escapeHtml(formatValue(value));
             td.textContent = value;
 
-            // Специальное форматирование для служебных полей администратора
             if (isAdmin) {
                 const order = getServiceFieldOrder(header);
                 const isId = isIdColumn(header);
 
-                // Служебные поля дат (порядок 1, 2, 6, 7)
                 if (order === 1 || order === 2 || order === 6 || order === 7) {
                     td.classList.add('admin-service-field-date');
                     td.style.fontFamily = 'monospace';
                     td.style.fontSize = '12px';
                     td.style.color = '#0066cc';
                     td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#f0f8ff';
-                }
-                // Служебные поля "кто" (порядок 3 и 4)
-                else if (order === 3 || order === 4) {
+                } else if (order === 3 || order === 4) {
                     td.classList.add('admin-service-field-user');
                     td.style.fontStyle = 'italic';
                     td.style.color = '#666';
                     td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#f9f9f9';
-                }
-                // Служебные поля "когда удалено" (порядок 5)
-                else if (order === 5) {
+                } else if (order === 5) {
                     td.classList.add('admin-service-field-delete');
                     td.style.fontFamily = 'monospace';
                     td.style.fontSize = '11px';
@@ -831,22 +774,17 @@ function displayTableData(data) {
                     td.style.backgroundColor = '#fff0f0';
                     td.style.fontWeight = 'bold';
 
-                    // Особое выделение даты удаления
                     if (value !== '-' && value !== '') {
                         td.style.border = '2px solid #ff6b6b';
                         td.style.borderRadius = '4px';
                         td.style.padding = '2px 4px';
                     }
-                }
-                // ID поля
-                else if (isId) {
+                } else if (isId) {
                     td.style.fontFamily = 'monospace';
                     td.style.backgroundColor = isDeleted ? '#ffe6e6' : '#fff0f0';
                     td.style.fontWeight = 'bold';
                     td.style.color = '#990000';
-                }
-                // Остальные служебные поля
-                else if (order < 999) {
+                } else if (order < 999) {
                     td.classList.add('admin-service-field');
                     td.style.fontFamily = 'monospace';
                     td.style.fontSize = '11px';
@@ -858,18 +796,15 @@ function displayTableData(data) {
             tableRow.appendChild(td);
         });
 
-        // Показываем действия только если запись не удалена или это администратор
         if (!isDeleted || isAdmin) {
             const actionsTd = document.createElement('td');
             actionsTd.className = 'actions-cell';
             actionsTd.style.textAlign = 'center';
             actionsTd.style.display = 'flex';
-            actionsTd.style.gap = '8px'; // Увеличиваем отступ между кнопками
+            actionsTd.style.gap = '5px';
             actionsTd.style.justifyContent = 'center';
             actionsTd.style.alignItems = 'center';
-            actionsTd.style.flexWrap = 'wrap';
 
-            // Кнопка просмотра
             const viewBtn = document.createElement('button');
             viewBtn.className = 'action-btn view-btn';
             viewBtn.textContent = '👁';
@@ -893,7 +828,6 @@ function displayTableData(data) {
             viewBtn.onclick = () => viewDetails(row, displayHeaders);
             actionsTd.appendChild(viewBtn);
 
-            // Кнопка редактирования
             const editBtn = document.createElement('button');
             editBtn.className = 'action-btn edit-btn';
             editBtn.textContent = '✏️';
@@ -917,7 +851,6 @@ function displayTableData(data) {
             editBtn.onclick = () => handleEditRecord(row);
             actionsTd.appendChild(editBtn);
 
-            // Кнопка удаления/восстановления
             const actionBtn = document.createElement('button');
             actionBtn.className = 'action-btn';
             actionBtn.style.cssText = `
@@ -932,18 +865,16 @@ function displayTableData(data) {
             `;
 
             if (isAdmin && isDeleted) {
-                // Для администратора: кнопка восстановления удаленной записи
                 actionBtn.textContent = '♻️';
                 actionBtn.title = 'Восстановить запись';
                 actionBtn.style.backgroundColor = '#2196F3';
                 actionBtn.onclick = () => handleDeleteRestore(row);
             } else {
-                // Для всех: кнопка удаления
                 actionBtn.textContent = '🗑️';
 
                 if (isAdmin) {
                     actionBtn.title = 'Пометить как удаленную (установить дату удаления)';
-                    actionBtn.style.backgroundColor = '#f44336';
+                    actionBtn.style.backgroundColor = '#ff9800';
                 } else {
                     actionBtn.title = 'Удалить запись (скрыть из списка)';
                     actionBtn.style.backgroundColor = '#f44336';
@@ -955,13 +886,25 @@ function displayTableData(data) {
             actionsTd.appendChild(actionBtn);
             tableRow.appendChild(actionsTd);
         } else {
-            // Для удаленных записей у не-администраторов не показываем действия
             const emptyTd = document.createElement('td');
             tableRow.appendChild(emptyTd);
         }
 
         tableBody.appendChild(tableRow);
     });
+}
+
+function escapeHtml(text) {
+    if (typeof text !== 'string') return text;
+
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function (m) { return map[m]; });
 }
 
 function formatValue(value) {
@@ -981,13 +924,11 @@ function formatValue(value) {
     }
 
     if (typeof value === 'string') {
-        // Проверяем, является ли строка датой в формате ISO
         const dateRegex = /^\d{4}-\d{2}-\d{2}/;
         if (dateRegex.test(value)) {
             try {
                 const date = new Date(value);
                 if (!isNaN(date.getTime())) {
-                    // Для дат удаления возвращаем полное время
                     if (value.includes('T') && value.length > 10) {
                         return date.toLocaleDateString('ru-RU') + ' ' +
                             date.toLocaleTimeString('ru-RU', {
@@ -999,7 +940,6 @@ function formatValue(value) {
                     return date.toLocaleDateString('ru-RU');
                 }
             } catch (e) {
-                // Не удалось распарсить как дату
             }
         }
         return value;
@@ -1051,7 +991,6 @@ function formatHeader(header) {
         'modifieddate': 'Дата изменения',
         'isactive': 'Активен',
 
-        // Служебные поля (показываются только администратору)
         'dateofrecording': 'Когда создали',
         'date_of_recording': 'Когда создали',
         'Date_of_recording': 'Когда создали',
@@ -1074,8 +1013,7 @@ function formatHeader(header) {
         'modifiedby': 'Изменил',
         'deletedby': 'Удалил',
         'createdat': 'Создано',
-        'updatedat': 'Обновлено',
-        'isdeleted': 'Удалено'
+        'updatedat': 'Обновлено'
     };
 
     const lowerHeader = header.toLowerCase();
@@ -1122,13 +1060,13 @@ function viewDetails(data, displayHeaders = null) {
         html += '<div style="background-color: #fff0f0; padding: 10px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ff6b6b;">';
         html += '<strong>⚠️ Эта запись удалена</strong><br>';
         html += '<small>Видна только администраторам. Дата удаления: ' +
-            formatValue(data.WhenDeleted || data.whenDeleted || data.deletedAt) + '</small>';
+            escapeHtml(formatValue(data.WhenDeleted || data.whenDeleted || data.deletedAt)) + '</small>';
         html += '</div>';
     }
 
     fieldsToShow.forEach(key => {
         let value = data[key];
-        value = formatValue(value);
+        value = escapeHtml(formatValue(value));
 
         const order = getServiceFieldOrder(key);
         const isService = order < 999;
@@ -1137,7 +1075,7 @@ function viewDetails(data, displayHeaders = null) {
         html += `
             <div class="detail-row">
                 <span class="detail-label ${isService || isId ? 'admin-label' : ''}">
-                    ${isId ? '🆔 ' : ''}${formatHeader(key)}:
+                    ${isId ? '🆔 ' : ''}${escapeHtml(formatHeader(key))}:
                 </span>
                 <span class="detail-value ${isService || isId ? 'admin-value' : ''}">
                     ${value}
@@ -1196,7 +1134,6 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
-// Экспорт функций
 window.showStatisticsPage = showStatisticsPage;
 window.logout = logout;
 window.onTableSelect = onTableSelect;
@@ -1204,6 +1141,5 @@ window.generateData = generateData;
 window.refreshData = refreshData;
 window.viewDetails = viewDetails;
 window.closeModal = closeModal;
-window.closeEditModal = closeEditModal; // Экспортируем новую функцию
-window.handleEditRecord = handleEditRecord; // Экспортируем функцию редактирования
-[file content end]
+window.closeEditModal = closeEditModal;
+window.handleEditRecord = handleEditRecord;

@@ -57,7 +57,7 @@ class ApiService {
             if (response.status === 401) {
                 this.clearData();
                 window.location.href = 'login.html';
-                throw new Error('Требуется авторизация');
+                return Promise.reject(new Error('Требуется авторизация'));
             }
 
             let responseData;
@@ -99,8 +99,13 @@ class ApiService {
 
     async login(credentials) {
         try {
+            const loginField = credentials.login || credentials.username || credentials.email;
+            if (!loginField) {
+                throw new Error('Не указано имя пользователя, логин или email');
+            }
+
             const loginData = {
-                login: credentials.login || credentials.username || credentials.email,
+                login: loginField,
                 password: credentials.password
             };
 
@@ -178,10 +183,8 @@ class ApiService {
         try {
             console.log(`🔍 Получение данных для таблицы: ${tableName}, роль: ${this.userRole}`);
 
-            // Определяем endpoint в зависимости от роли
             let endpoint;
 
-            // Для администратора используем endpoints с суффиксом /admin для получения всех записей
             if (this.isAdmin()) {
                 const adminEndpointMap = {
                     'equipment': '/equipment/admin',
@@ -193,7 +196,6 @@ class ApiService {
                 };
                 endpoint = adminEndpointMap[tableName];
 
-                // Если endpoint для администратора не определен, используем обычный
                 if (!endpoint) {
                     console.log(`⚠️ Админский endpoint для ${tableName} не найден, используем обычный`);
                     const regularEndpointMap = {
@@ -207,7 +209,6 @@ class ApiService {
                     endpoint = regularEndpointMap[tableName];
                 }
             } else {
-                // Для обычных пользователей используем обычные endpoints
                 const endpointMap = {
                     'equipment': '/equipment',
                     'fuel': '/fuel',
@@ -233,7 +234,6 @@ class ApiService {
         } catch (error) {
             console.error('❌ Ошибка в getTableData:', error);
 
-            // Если админский endpoint не работает, пробуем обычный для администратора
             if (this.isAdmin() && (error.status === 404 || error.status === 405)) {
                 console.log('🔄 Пробуем обычный endpoint для администратора...');
                 const regularEndpointMap = {
@@ -262,12 +262,10 @@ class ApiService {
     isRecordDeleted(item) {
         if (!item) return false;
 
-        // Проверяем поле isDeleted (булевое)
         if (item.isDeleted === true || item.IsDeleted === true || item.isdeleted === true) {
             return true;
         }
 
-        // Проверяем поля с датой удаления
         const deleteDateFields = ['deletedAt', 'DeletedAt', 'whenDeleted', 'WhenDeleted'];
         for (const field of deleteDateFields) {
             if (item[field] !== null && item[field] !== undefined && item[field] !== '') {
@@ -282,11 +280,9 @@ class ApiService {
         try {
             console.log(`🗑️ Удаление записи: ${tableName}, id=${id}, роль=${this.userRole}`);
 
-            // Для администратора используем мягкое удаление
             if (this.isAdmin()) {
                 console.log(`👨‍💼 Администратор выполняет мягкое удаление`);
 
-                // Используем стандартный DELETE endpoint, который уже есть в контроллере
                 const endpoint = `/${tableName}/${id}`;
                 console.log(`📤 Отправка DELETE на ${endpoint}`);
 
@@ -305,7 +301,6 @@ class ApiService {
                 }
             }
 
-            // Для обычных пользователей также используем DELETE
             const endpoint = `/${tableName}/${id}`;
             console.log(`📤 Отправка DELETE на ${endpoint}`);
 
@@ -321,7 +316,6 @@ class ApiService {
         } catch (error) {
             console.error('❌ Ошибка при удалении записи:', error);
 
-            // Если API не работает, используем локальное решение
             if (error.status === 405 || error.status === 404) {
                 return {
                     success: true,
@@ -342,7 +336,6 @@ class ApiService {
 
             console.log(`♻️ Восстановление записи: ${tableName}, id=${id}`);
 
-            // Используем POST метод для восстановления, как в вашем контроллере
             const endpoint = `/${tableName}/restore/${id}`;
             console.log(`📤 Отправка POST на ${endpoint}`);
 
@@ -354,7 +347,6 @@ class ApiService {
             } catch (postError) {
                 console.log(`❌ POST не сработал (${postError.status})`);
 
-                // Пробуем без тела, если с телом не сработало
                 try {
                     const response = await this.request(endpoint, {
                         method: 'POST',
@@ -369,7 +361,6 @@ class ApiService {
         } catch (error) {
             console.error('❌ Ошибка при восстановлении записи:', error);
 
-            // Если все методы не работают, используем локальное решение
             if (error.status === 405 || error.status === 404) {
                 console.log('⚠️ API не поддерживает восстановление, используем локальное решение');
                 return {
@@ -387,7 +378,6 @@ class ApiService {
         try {
             console.log(`✏️ Обновление записи: ${tableName}, id=${id}`, data);
 
-            // Используем PUT метод для обновления
             const endpoint = `/${tableName}/${id}`;
             console.log(`📤 Отправка PUT на ${endpoint}`);
 
@@ -400,7 +390,6 @@ class ApiService {
             } catch (putError) {
                 console.log(`❌ PUT не сработал (${putError.status}), пробуем PATCH`);
 
-                // Пробуем PATCH, если PUT не работает
                 try {
                     const response = await this.request(endpoint, {
                         method: 'PATCH',
@@ -415,7 +404,6 @@ class ApiService {
         } catch (error) {
             console.error('❌ Ошибка при обновлении записи:', error);
 
-            // Если API не работает, используем локальное решение
             if (error.status === 405 || error.status === 404) {
                 console.log('⚠️ API не поддерживает обновление, используем локальное решение');
                 return {
@@ -435,7 +423,6 @@ class ApiService {
             return null;
         }
 
-        // Список возможных названий полей с ID
         const idFields = [
             'id', 'Id', 'ID',
             'idEquipment', 'IdEquipment', 'IDEquipment',
@@ -453,7 +440,6 @@ class ApiService {
             }
         }
 
-        // Если не нашли в стандартных полях, ищем поле, содержащее "id" в названии
         for (const key in record) {
             if (record.hasOwnProperty(key) && key.toLowerCase().includes('id')) {
                 const value = record[key];
@@ -473,7 +459,6 @@ class ApiService {
         } else if (response && response.data && Array.isArray(response.data)) {
             return response.data;
         } else if (response && typeof response === 'object') {
-            // Проверяем наличие любого ID поля
             const id = this.getRecordId(response);
             if (id !== null) {
                 return [response];
@@ -493,7 +478,7 @@ class ApiService {
             const data = await this.request(endpoint, { method: 'GET' });
             return data;
         } catch (error) {
-            return this.generateBasicStatistics(tableName);
+            return await this.generateBasicStatistics(tableName);
         }
     }
 
@@ -515,8 +500,11 @@ class ApiService {
                 total: data.length
             };
 
-            for (let i = 0; i < Math.min(data.length, 6); i++) {
-                stats.labels.push(`Запись ${i + 1}`);
+            const now = new Date();
+            for (let i = 5; i >= 0; i--) {
+                const date = new Date(now);
+                date.setDate(date.getDate() - i);
+                stats.labels.push(date.toLocaleDateString('ru-RU'));
                 stats.data.push(Math.floor(Math.random() * 100) + 1);
             }
 
@@ -536,7 +524,6 @@ class ApiService {
     }
 }
 
-// Создаем глобальный экземпляр
 const api = new ApiService();
 window.api = api;
 window.apiService = api;
