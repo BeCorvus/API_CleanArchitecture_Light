@@ -125,6 +125,12 @@ function getServiceFieldOrder(header) {
     return 999;
 }
 
+function isReadOnlyServiceField(header) {
+    const order = getServiceFieldOrder(header);
+    // Поля с порядком 1-5 (Когда создали, Когда изменили, Кто создал, Кто изменил, Когда удалено) должны быть только для чтения
+    return order >= 1 && order <= 5;
+}
+
 function sortHeadersForAdmin(headers) {
     const isAdmin = api.isAdmin();
 
@@ -239,6 +245,11 @@ function setupEventListeners() {
         const modal = document.getElementById('detailsModal');
         if (event.target == modal) {
             closeModal();
+        }
+
+        const editModal = document.getElementById('editModal');
+        if (editModal && event.target == editModal) {
+            closeEditModal();
         }
     });
 
@@ -460,12 +471,21 @@ async function handleEditRecord(record) {
 }
 
 function showEditModal(record) {
-    const modal = document.getElementById('editModal');
-    if (!modal) {
+    // Создаем модальное окно, если его нет
+    if (!document.getElementById('editModal')) {
         createEditModal();
     }
 
+    // Получаем элементы после создания
+    const modal = document.getElementById('editModal');
     const modalContent = document.getElementById('editModalContent');
+
+    if (!modal || !modalContent) {
+        console.error('Не удалось найти элементы модального окна редактирования');
+        showNotification('Ошибка при открытии окна редактирования', 'error');
+        return;
+    }
+
     const recordId = api.getRecordId(record);
 
     let html = `<h3>Редактирование записи</h3>`;
@@ -486,13 +506,22 @@ function showEditModal(record) {
         const value = record[key];
         const formattedValue = escapeHtml(formatValue(value));
         const label = escapeHtml(formatHeader(key));
+        const isReadOnlyService = isReadOnlyServiceField(key);
+        const isIdField = isIdColumn(key);
 
         html += `
             <div class="form-group">
                 <label for="${escapeHtml(key)}">${label}:</label>
         `;
 
-        if (typeof value === 'boolean') {
+        if (isReadOnlyService || isIdField) {
+            // Поля только для чтения (служебные поля и ID)
+            html += `
+                <input type="text" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
+                       value="${formattedValue}" class="form-input" readonly>
+                <small class="readonly-note">${isIdField ? 'ID нельзя изменить' : 'Это поле заполняется автоматически'}</small>
+            `;
+        } else if (typeof value === 'boolean') {
             html += `
                 <select id="${escapeHtml(key)}" name="${escapeHtml(key)}" class="form-input">
                     <option value="true" ${value === true ? 'selected' : ''}>Да</option>
@@ -503,12 +532,6 @@ function showEditModal(record) {
             html += `
                 <input type="datetime-local" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
                        value="${escapeHtml(formatDateForInput(value))}" class="form-input">
-            `;
-        } else if (isIdColumn(key)) {
-            html += `
-                <input type="text" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
-                       value="${formattedValue}" class="form-input" readonly>
-                <small>ID нельзя изменить</small>
             `;
         } else if (key.toLowerCase() === 'password') {
             html += `
@@ -534,6 +557,24 @@ function showEditModal(record) {
 
     html += '</form>';
     modalContent.innerHTML = html;
+
+    // Добавляем стили для полей только для чтения
+    const style = document.createElement('style');
+    style.textContent = `
+        .form-input[readonly] {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+            border-color: #ddd;
+        }
+        .readonly-note {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+        }
+    `;
+    document.head.appendChild(style);
 
     modal.style.display = 'flex';
 
@@ -563,6 +604,8 @@ function createEditModal() {
             closeEditModal();
         }
     });
+
+    return modal;
 }
 
 async function submitEditForm(recordId, form) {
@@ -578,23 +621,45 @@ async function submitEditForm(recordId, form) {
 
         Object.keys(data).forEach(key => {
             const input = form.querySelector(`[name="${key}"]`);
-            if (input && input.readOnly) {
+            if (input && (input.readOnly || input.disabled)) {
                 delete data[key];
             }
         });
 
         console.log('📤 Отправка данных для редактирования:', data);
 
-        const result = await api.updateRecord(currentTable, recordId, data);
+        // Важное изменение: не проверяем результат, а просто ждем завершения запроса
+        await api.updateRecord(currentTable, recordId, data);
 
-        if (result) {
-            showNotification('Запись успешно обновлена', 'success');
-            closeEditModal();
-            generateData();
+        showNotification('Запись успешно обновлена', 'success');
+        closeEditModal();
+
+        // Перезагружаем данные таблицы
+        try {
+            await generateData();
+        } catch (refreshError) {
+            console.error('Ошибка при обновлении таблицы:', refreshError);
+            // Не показываем ошибку пользователю, так как запись уже сохранена
         }
+
     } catch (error) {
         console.error('❌ Ошибка при обновлении записи:', error);
-        showNotification(`Ошибка при обновлении: ${error.message}`, 'error');
+
+        let errorMessage = 'Ошибка при обновлении записи';
+        if (error.status === 400) {
+            errorMessage = 'Неверные данные. Проверьте введенные значения.';
+        } else if (error.status === 404) {
+            errorMessage = 'Запись не найдена на сервере.';
+        } else if (error.status === 403) {
+            errorMessage = 'У вас нет прав на редактирование этой записи.';
+        } else if (error.status === 500) {
+            errorMessage = 'Ошибка сервера при сохранении изменений.';
+        }
+
+        showNotification(`${errorMessage}: ${error.message || 'Неизвестная ошибка'}`, 'error');
+
+        // Не закрываем модальное окно при ошибке
+        // Форма остается открытой для исправления ошибок
     }
 }
 
@@ -602,6 +667,11 @@ function closeEditModal() {
     const modal = document.getElementById('editModal');
     if (modal) {
         modal.style.display = 'none';
+        // Очищаем содержимое формы
+        const modalContent = document.getElementById('editModalContent');
+        if (modalContent) {
+            modalContent.innerHTML = '';
+        }
     }
 }
 
