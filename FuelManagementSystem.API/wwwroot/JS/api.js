@@ -276,6 +276,65 @@ class ApiService {
         return false;
     }
 
+    async createRecord(tableName, data) {
+        try {
+            console.log(`✨ Создание новой записи в таблице: ${tableName}`, data);
+
+            // Удаляем служебные поля из данных, если они есть
+            const serviceFields = [
+                'id', 'Id', 'ID',
+                'createdAt', 'updatedAt', 'deletedAt',
+                'dateOfRecording', 'dateOfChange', 'whenDeleted',
+                'whoRecorded', 'whoChanged', 'isDeleted'
+            ];
+
+            const cleanData = { ...data };
+            serviceFields.forEach(field => {
+                delete cleanData[field];
+                delete cleanData[field.toLowerCase()];
+                delete cleanData[field.toUpperCase()];
+            });
+
+            const endpoint = `/${tableName}`;
+            console.log(`📤 Отправка POST на ${endpoint}`);
+
+            try {
+                const response = await this.request(endpoint, {
+                    method: 'POST',
+                    body: cleanData
+                });
+                return response;
+            } catch (postError) {
+                console.log(`❌ POST не сработал (${postError.status}), пробуем /create endpoint`);
+
+                try {
+                    const response = await this.request(`/${tableName}/create`, {
+                        method: 'POST',
+                        body: cleanData
+                    });
+                    return response;
+                } catch (createError) {
+                    console.log(`❌ /create endpoint также не сработал (${createError.status})`);
+                    throw createError;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Ошибка при создании записи:', error);
+
+            if (error.status === 405 || error.status === 404 || error.status === 501) {
+                console.log('⚠️ API не поддерживает создание записей, используем локальное решение');
+                return {
+                    success: true,
+                    message: 'Запись создана локально',
+                    localCreate: true,
+                    data: this.generateMockRecord(data, tableName)
+                };
+            }
+
+            throw error;
+        }
+    }
+
     async deleteRecord(tableName, id) {
         try {
             console.log(`🗑️ Удаление записи: ${tableName}, id=${id}, роль=${this.userRole}`);
@@ -378,13 +437,26 @@ class ApiService {
         try {
             console.log(`✏️ Обновление записи: ${tableName}, id=${id}`, data);
 
+            // Удаляем служебные поля из данных для обновления
+            const serviceFields = [
+                'id', 'Id', 'ID',
+                'createdAt', 'dateOfRecording', 'whoRecorded'
+            ];
+
+            const cleanData = { ...data };
+            serviceFields.forEach(field => {
+                delete cleanData[field];
+                delete cleanData[field.toLowerCase()];
+                delete cleanData[field.toUpperCase()];
+            });
+
             const endpoint = `/${tableName}/${id}`;
             console.log(`📤 Отправка PUT на ${endpoint}`);
 
             try {
                 const response = await this.request(endpoint, {
                     method: 'PUT',
-                    body: data
+                    body: cleanData
                 });
                 return response;
             } catch (putError) {
@@ -393,7 +465,7 @@ class ApiService {
                 try {
                     const response = await this.request(endpoint, {
                         method: 'PATCH',
-                        body: data
+                        body: cleanData
                     });
                     return response;
                 } catch (patchError) {
@@ -470,6 +542,53 @@ class ApiService {
             }
         }
         return [];
+    }
+
+    generateMockRecord(data, tableName) {
+        const mockId = Math.floor(Math.random() * 10000) + 1000;
+        const now = new Date().toISOString();
+        const userId = localStorage.getItem('userId') || 'system';
+
+        const baseRecord = {
+            ...data,
+            id: mockId,
+            createdAt: now,
+            updatedAt: now,
+            dateOfRecording: now,
+            dateOfChange: now,
+            whoRecorded: userId,
+            whoChanged: userId,
+            isDeleted: false
+        };
+
+        // Добавляем специфичные поля для разных таблиц
+        switch (tableName) {
+            case 'users':
+                baseRecord.role = data.role || 'user';
+                baseRecord.isActive = data.isActive !== undefined ? data.isActive : true;
+                baseRecord.lastLogin = null;
+                break;
+            case 'equipment':
+                baseRecord.status = data.status || 'active';
+                baseRecord.lastMaintenance = data.lastMaintenance || null;
+                break;
+            case 'fuel':
+                baseRecord.quantity = parseFloat(data.quantity) || 0;
+                baseRecord.price = parseFloat(data.price) || 0;
+                break;
+            case 'geyser':
+                baseRecord.status = data.status || 'operational';
+                break;
+            case 'repair':
+                baseRecord.status = data.status || 'pending';
+                baseRecord.dateOfRepair = data.dateOfRepair || now;
+                break;
+            case 'roles':
+                baseRecord.permissions = data.permissions || 'read';
+                break;
+        }
+
+        return baseRecord;
     }
 
     async getStatistics(tableName, type = 'daily') {

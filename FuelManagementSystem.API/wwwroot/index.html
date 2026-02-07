@@ -21,10 +21,10 @@
 
             <div class="header-right">
                 <nav class="main-nav">
-                    <button id="statisticsBtn" class="nav-btn" onclick="showStatisticsPage()">
+                    <button id="statisticsBtn" class="nav-btn">
                         Статистика
                     </button>
-                    <button class="nav-btn logout-btn" onclick="logout()">
+                    <button class="nav-btn logout-btn">
                         Выйти
                     </button>
                 </nav>
@@ -34,11 +34,19 @@
         <!-- Основное содержание -->
         <main class="dashboard-main">
             <div class="content-header">
-                <h2 class="section-title">Таблицы</h2>
+                <div class="header-top-section">
+                    <h2 class="section-title">Таблицы</h2>
+                    <div class="header-actions">
+                        <button id="generateBtn" class="generate-btn" disabled>
+                            Обновить данные
+                        </button>
+                    </div>
+                </div>
+
                 <div class="controls-row">
                     <div class="table-selection">
                         <label for="tableSelect" class="select-label">Название таблицы</label>
-                        <select id="tableSelect" class="table-select" onchange="onTableSelect()">
+                        <select id="tableSelect" class="table-select">
                             <option value="">-- Выберите таблицу --</option>
                             <option value="equipment">Оборудование</option>
                             <option value="fuel">Топливо</option>
@@ -49,9 +57,11 @@
                         </select>
                     </div>
 
-                    <button id="generateBtn" class="generate-btn" onclick="generateData()" disabled>
-                        генерация данных
-                    </button>
+                    <div class="action-buttons">
+                        <button id="createDataBtn" class="create-data-btn" disabled>
+                            Создать данные
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -83,8 +93,16 @@
     <!-- Модальное окно для подробного просмотра -->
     <div id="detailsModal" class="modal">
         <div class="modal-content">
-            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <span class="close-modal">&times;</span>
             <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для редактирования/создания -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div id="editModalContent"></div>
         </div>
     </div>
 

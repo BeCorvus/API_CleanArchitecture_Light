@@ -93,13 +93,30 @@
     border-bottom: 2px solid #e1e1e1;
 }
 
-.section-title {
-    font-size: 24px;
-    color: #061f8a;
+/* Верхняя секция с заголовком и кнопкой обновления */
+.header-top-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 20px;
-    font-weight: 600;
+    flex-wrap: wrap;
+    gap: 20px;
 }
 
+    .header-top-section .section-title {
+        font-size: 24px;
+        color: #061f8a;
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .header-top-section .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+/* Строка управления с выбором таблицы и кнопкой создания */
 .controls-row {
     display: flex;
     gap: 20px;
@@ -107,9 +124,16 @@
     flex-wrap: wrap;
 }
 
-.table-selection, .chart-type-selection {
+.table-selection {
     flex: 1;
     min-width: 250px;
+}
+
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
 }
 
 .select-label {
@@ -137,7 +161,6 @@
         box-shadow: 0 0 0 3px rgba(6, 31, 138, 0.1);
     }
 
-    /* ✅ ДОБАВЛЕНО: Стили для скрытых опций в select */
     .table-select option.hidden {
         display: none !important;
     }
@@ -160,8 +183,9 @@
             color: white !important;
         }
 
+/* Кнопка "Обновить данные" */
 .generate-btn {
-    padding: 12px 30px;
+    padding: 12px 25px;
     background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
     border: none;
     border-radius: 8px;
@@ -171,6 +195,8 @@
     cursor: pointer;
     transition: all 0.3s ease;
     white-space: nowrap;
+    min-width: 150px;
+    text-align: center;
 }
 
     .generate-btn:hover:not(:disabled) {
@@ -182,10 +208,42 @@
         opacity: 0.5;
         cursor: not-allowed;
         transform: none !important;
+        background: linear-gradient(135deg, #cccccc 0%, #999999 100%);
     }
 
+/* Кнопка "Создать данные" */
+.create-data-btn {
+    padding: 12px 25px;
+    background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    min-width: 150px;
+    text-align: center;
+}
+
+    .create-data-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(156, 39, 176, 0.3);
+        background: linear-gradient(135deg, #8a24a1 0%, #5c2fa5 100%);
+    }
+
+    .create-data-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+        background: linear-gradient(135deg, #cccccc 0%, #999999 100%);
+    }
+
+/* Контейнер данных */
 .data-container {
     margin-top: 20px;
+    position: relative;
 }
 
 .table-container {
@@ -199,6 +257,7 @@
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 0.5s ease-out;
 }
 
     .data-table th {
@@ -224,236 +283,106 @@
         border-bottom: none;
     }
 
-/* Стили для страницы статистики */
-.statistics-container {
-    margin-top: 20px;
-}
-
-.chart-controls {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    margin-bottom: 25px;
-    flex-wrap: wrap;
-}
-
-.chart-btn {
-    padding: 10px 20px;
-    background: linear-gradient(135deg, #061f8a 0%, #9656d6 100%);
-    border: none;
-    border-radius: 8px;
-    color: white;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-    .chart-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
-    }
-
-.chart-select {
-    padding: 10px 15px;
-    border: 2px solid #e1e1e1;
-    border-radius: 8px;
-    font-size: 14px;
-    background: white;
-    cursor: pointer;
-    min-width: 150px;
-}
-
-.chart-wrapper {
-    background: white;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
-    min-height: 500px;
-    position: relative;
-}
-
-    .chart-wrapper canvas {
-        width: 100% !important;
-        height: 450px !important;
-    }
-
-.chart-stats {
-    background: white;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-}
-
-.stat-card {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-    text-align: center;
-}
-
-.stat-value {
-    font-size: 24px;
-    font-weight: bold;
-    color: #061f8a;
-    margin: 5px 0;
-}
-
-.stat-label {
-    font-size: 14px;
-    color: #666;
-}
-
-/* Адаптивность */
-@media (max-width: 992px) {
-    .dashboard-container {
-        padding: 10px;
-    }
-
-    .dashboard-header {
-        flex-direction: column;
-        align-items: stretch;
+    .data-table th:first-child,
+    .data-table td:first-child {
         text-align: center;
+        font-weight: bold;
+        background-color: #f8f9fa;
+        position: sticky;
+        left: 0;
+        z-index: 2;
     }
 
-    .header-left {
-        justify-content: center;
-        gap: 15px;
+    .data-table th:first-child {
+        background: linear-gradient(135deg, #061f8a 0%, #9656d6 100%);
     }
 
-    .main-nav {
-        justify-content: center;
-    }
+/* Стили для служебных полей администратора */
+.admin-service-header {
+    background-color: #e8f5e9 !important;
+    border-left: 3px solid #4caf50 !important;
+    color: #2e7d32 !important;
+    font-weight: 600 !important;
 }
 
-@media (max-width: 768px) {
-    .dashboard-main {
-        padding: 20px;
-    }
-
-    .controls-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .table-selection, .chart-type-selection {
-        min-width: 100%;
+    .admin-service-header::after {
+        content: " 🔧";
+        font-size: 12px;
+        opacity: 0.8;
     }
 
-    .chart-wrapper {
-        padding: 10px;
+.admin-service-cell {
+    background-color: #f1f8e9 !important;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #1b5e20 !important;
+}
+
+.admin-service-field-date {
+    font-family: 'Courier New', monospace !important;
+    font-size: 12px !important;
+    color: #0066cc !important;
+    background-color: #f0f8ff !important;
+}
+
+.admin-service-field-user {
+    font-style: italic !important;
+    color: #666 !important;
+    background-color: #f9f9f9 !important;
+}
+
+.admin-service-field-delete {
+    font-family: 'Courier New', monospace !important;
+    font-size: 11px !important;
+    color: #cc0000 !important;
+    background-color: #fff0f0 !important;
+    font-weight: bold !important;
+    border: 2px solid #ff6b6b !important;
+    border-radius: 4px !important;
+    padding: 2px 4px !important;
+}
+
+.admin-deleted-record {
+    background-color: #fff8f8 !important;
+    border-left: 4px solid #ff6b6b !important;
+    opacity: 0.9;
+}
+
+    .admin-deleted-record td {
+        background-color: #ffe6e6 !important;
     }
 
-        .chart-wrapper canvas {
-            height: 400px !important;
-        }
-}
-
-/* Дополнительные стили для таблиц и диаграмм */
-.details-container {
-    display: grid;
-    gap: 15px;
-    margin-top: 20px;
-}
-
-.detail-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #e1e1e1;
-}
-
-    .detail-row:last-child {
-        border-bottom: none;
-    }
-
-.detail-label {
-    font-weight: 600;
-    color: #555;
-}
-
-.detail-value {
-    color: #333;
-}
-
-.actions-cell {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-}
-
-.action-btn {
-    padding: 5px 10px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s ease;
-}
-
-.view-btn {
-    background-color: #3498db;
+.deleted-indicator {
+    background-color: #ff6b6b;
     color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    display: block;
+    margin-top: 3px;
 }
 
-    .view-btn:hover {
-        background-color: #2980b9;
+@keyframes highlightDeleted {
+    0% {
+        background-color: #ffe6e6;
     }
 
-/* Анимации */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+    50% {
+        background-color: #ffcccc;
     }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    100% {
+        background-color: #ffe6e6;
     }
 }
 
-.data-table {
-    animation: fadeIn 0.5s ease-out;
+.admin-deleted-record.highlight {
+    animation: highlightDeleted 2s ease-in-out;
 }
 
-.chart-wrapper canvas {
-    animation: fadeIn 0.5s ease-out;
-}
-
-/* Стили для выбора таблицы при наведении */
-.table-select option:hover {
-    background-color: #061f8a;
-    color: white;
-}
-
-/* Кастомный скроллбар */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #061f8a;
-    border-radius: 4px;
-}
-
-    ::-webkit-scrollbar-thumb:hover {
-        background: #050e6e;
-    }
-
-/* Стили для кнопки статистики */
+/* Кнопка статистики */
 #statisticsBtn {
-    display: none; /* По умолчанию скрыта */
+    display: none;
     background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
     color: white;
     border: none;
@@ -479,11 +408,175 @@
         box-shadow: 0 2px 10px rgba(106, 17, 203, 0.3);
     }
 
-/* Контейнер для кнопок в шапке */
-.header-actions {
-    display: flex;
+/* Модальные окна */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
     align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.close-modal {
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+}
+
+    .close-modal:hover {
+        color: #000;
+    }
+
+/* Формы редактирования/создания */
+.edit-form {
+    display: grid;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+    .form-group label {
+        font-weight: 600;
+        color: #333;
+        font-size: 14px;
+    }
+
+.form-input {
+    padding: 12px 15px;
+    border: 2px solid #e1e1e1;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+    .form-input:focus {
+        border-color: #061f8a;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(6, 31, 138, 0.1);
+    }
+
+    .form-input[readonly] {
+        background-color: #f5f5f5;
+        cursor: not-allowed;
+        border-color: #ddd;
+    }
+
+.readonly-note {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
     gap: 15px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e1e1e1;
+}
+
+.btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #061f8a 0%, #9656d6 100%);
+    color: white;
+}
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+.btn-secondary {
+    background: #f8f9fa;
+    color: #333;
+    border: 1px solid #e1e1e1;
+}
+
+    .btn-secondary:hover {
+        background: #e9ecef;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+/* Индикаторы загрузки и состояния */
+.loading {
+    display: none;
+    position: relative;
+    text-align: center;
+    padding: 30px;
+}
+
+    .loading.active {
+        display: block;
+    }
+
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #061f8a;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.no-data {
+    text-align: center;
+    padding: 50px 20px;
+    color: #666;
+    font-size: 18px;
+    display: none;
+}
+
+#dataTableContainer {
+    display: none;
 }
 
 /* Уведомления */
@@ -537,7 +630,6 @@
     border: 1px solid #bee5eb;
 }
 
-/* ✅ ДОБАВЛЕНО: Классы для управления видимостью */
 .hidden {
     display: none !important;
 }
@@ -546,226 +638,7 @@
     display: inline-block !important;
 }
 
-/* ✅ ДОБАВЛЕНО: Специальные стили для кнопки статистики при разных ролях */
-.admin-statistics-btn {
-    background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%) !important;
-}
-
-.manager-statistics-btn {
-    background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%) !important;
-}
-
-/* ✅ ДОБАВЛЕНО: Индикатор доступа к таблицам */
-.access-badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: bold;
-    margin-left: 5px;
-    vertical-align: middle;
-}
-
-    .access-badge.admin-only {
-        background-color: #ff9800;
-        color: white;
-    }
-
-    .access-badge.all-users {
-        background-color: #4caf50;
-        color: white;
-    }
-
-/* ✅ ДОБАВЛЕНО: Стили для сообщения о ограниченном доступе */
-.access-restricted-message {
-    background-color: #fff3cd;
-    border: 1px solid #ffeaa7;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 15px 0;
-    text-align: center;
-    color: #856404;
-}
-
-    .access-restricted-message h4 {
-        margin-top: 0;
-        color: #856404;
-    }
-
-    .access-restricted-message p {
-        margin-bottom: 10px;
-    }
-
-/* ✅ ДОБАВЛЕНО: Стили для административных элементов */
-.admin-only-element {
-    border-left: 3px solid #ff9800;
-    padding-left: 10px;
-    margin: 10px 0;
-}
-
-    .admin-only-element::before {
-        content: "👑 ";
-        color: #ff9800;
-    }
-
-/* ✅ ДОБАВЛЕНО: Адаптивные стили для мобильных устройств */
-@media (max-width: 480px) {
-    .nav-btn {
-        padding: 8px 15px;
-        font-size: 14px;
-    }
-
-    #statisticsBtn {
-        padding: 10px 15px;
-        font-size: 14px;
-        margin-right: 10px;
-    }
-
-    .user-info {
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .table-select {
-        font-size: 14px;
-        padding: 10px 12px;
-    }
-}
-
-/* ✅ ДОБАВЛЕНО: Стили для нумерации строк */
-.data-table th:first-child,
-.data-table td:first-child {
-    text-align: center;
-    font-weight: bold;
-    background-color: #f8f9fa;
-    position: sticky;
-    left: 0;
-    z-index: 2;
-}
-
-.data-table th:first-child {
-    background: linear-gradient(135deg, #061f8a 0%, #9656d6 100%);
-}
-
-/* ✅ ДОБАВЛЕНО: Стили для скрытых ID столбцов */
-.hidden-id-column {
-    display: none !important;
-}
-
-/* ✅ ДОБАВЛЕНО: Стили для административных ID столбцов */
-.admin-id-column {
-    font-family: 'Courier New', monospace;
-    background-color: #f0f8ff;
-    color: #0066cc;
-    font-weight: bold;
-}
-
-/* ✅ ДОБАВЛЕНО: Стили для полосатой таблицы с нумерацией */
-.data-table tr:nth-child(even) td:first-child {
-    background-color: #f0f0f0;
-}
-
-.data-table tr:nth-child(odd) td:first-child {
-    background-color: #f8f9fa;
-}
-
-/* ✅ ДОБАВЛЕНО: Стили для мобильных устройств с нумерацией */
-@media (max-width: 768px) {
-    .data-table th:first-child,
-    .data-table td:first-child {
-        position: static;
-        min-width: 40px;
-    }
-}
-
-/* ✅ ДОБАВЛЕНО: Стили для служебных полей администратора */
-.admin-service-field {
-    font-family: 'Courier New', monospace !important;
-    font-size: 12px !important;
-    color: #0066cc !important;
-    background-color: #f0f8ff !important;
-}
-
-.admin-service-field-date {
-    font-family: 'Courier New', monospace !important;
-    font-size: 11px !important;
-    color: #008800 !important;
-    background-color: #f0fff0 !important;
-}
-
-.admin-service-field-user {
-    font-style: italic !important;
-    color: #666666 !important;
-    background-color: #f9f9f9 !important;
-}
-
-/* ✅ ДОБАВЛЕНО: Стили для ID полей администратора */
-.admin-id-field {
-    font-family: 'Courier New', monospace !important;
-    font-weight: bold !important;
-    color: #990000 !important;
-    background-color: #fff0f0 !important;
-}
-
-/* ✅ ДОБАВЛЕНО: Подсветка служебных полей в таблице для администратора */
-.data-table tr:hover .admin-service-field,
-.data-table tr:hover .admin-service-field-date,
-.data-table tr:hover .admin-service-field-user,
-.data-table tr:hover .admin-id-field {
-    opacity: 0.9;
-    transition: all 0.3s ease;
-}
-
-/* ✅ ДОБАВЛЕНО: Стили для служебных записей в модальном окне */
-.detail-row .detail-label.admin-label {
-    color: #0066cc;
-    font-weight: bold;
-    border-left: 3px solid #0066cc;
-    padding-left: 10px;
-}
-
-.detail-row .detail-value.admin-value {
-    font-family: 'Courier New', monospace;
-    background-color: #f0f8ff;
-    padding: 5px 10px;
-    border-radius: 4px;
-    border: 1px solid #cce0ff;
-}
-
-/* ✅ ДОБАВЛЕНО: Индикатор административных полей в таблице */
-.admin-field-indicator {
-    position: relative;
-}
-
-    .admin-field-indicator::before {
-        content: "👑";
-        position: absolute;
-        left: -20px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 10px;
-        opacity: 0.7;
-    }
-
-/* ✅ ДОБАВЛЕНО: Адаптивные стили для административных полей */
-@media (max-width: 768px) {
-    .admin-service-field,
-    .admin-service-field-date,
-    .admin-service-field-user,
-    .admin-id-field {
-        font-size: 10px !important;
-        padding: 5px !important;
-    }
-
-    .admin-field-indicator::before {
-        left: -15px;
-        font-size: 8px;
-    }
-}
-
-/* Добавьте в конец dashboard.css */
-
-/* Стили для кнопок действий */
+/* Кнопки действий в таблице */
 .actions-cell {
     display: flex;
     gap: 8px;
@@ -793,6 +666,27 @@
         opacity: 0.9;
     }
 
+    .action-btn[title] {
+        position: relative;
+    }
+
+        .action-btn[title]:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 8px;
+            pointer-events: none;
+        }
+
 .view-btn {
     background-color: #4CAF50;
     color: white;
@@ -800,6 +694,15 @@
 
     .view-btn:hover {
         background-color: #45a049;
+    }
+
+.edit-btn {
+    background-color: #FF9800;
+    color: white;
+}
+
+    .edit-btn:hover {
+        background-color: #e68900;
     }
 
 .delete-btn {
@@ -820,56 +723,81 @@
         background-color: #0b7dda;
     }
 
-/* Стили для удаленных записей */
-.deleted-row {
-    opacity: 0.7;
-    background-color: #f8f8f8 !important;
+.action-btn.admin-delete-btn {
+    background-color: #ff9800 !important;
+    color: white !important;
 }
 
-    .deleted-row td {
-        color: #999 !important;
+.action-btn.admin-restore-btn {
+    background-color: #2196F3 !important;
+    color: white !important;
+}
+
+/* Адаптивность */
+@media (max-width: 992px) {
+    .dashboard-container {
+        padding: 10px;
     }
 
-/* Подсказки для кнопок */
-.action-btn[title] {
-    position: relative;
-}
-
-    .action-btn[title]:hover::after {
-        content: attr(title);
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #333;
-        color: white;
-        padding: 6px 10px;
-        border-radius: 4px;
-        font-size: 12px;
-        white-space: nowrap;
-        z-index: 1000;
-        margin-bottom: 8px;
-        pointer-events: none;
+    .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
     }
 
-/* Улучшенные стили для таблицы */
-table {
-    border-collapse: collapse;
-    width: 100%;
+    .header-left {
+        justify-content: center;
+        gap: 15px;
+    }
+
+    .main-nav {
+        justify-content: center;
+    }
 }
 
-th, td {
-    padding: 12px 15px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-}
-
-tr:hover {
-    background-color: #f5f5f5;
-}
-
-/* Адаптивность для мобильных */
 @media (max-width: 768px) {
+    .dashboard-main {
+        padding: 20px;
+    }
+
+    .controls-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .table-selection, .action-buttons {
+        width: 100%;
+    }
+
+    .create-data-btn, .generate-btn {
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .header-top-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+        .header-top-section .header-actions {
+            width: 100%;
+            justify-content: center;
+        }
+
+    .modal-content {
+        padding: 20px;
+        width: 95%;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
     .actions-cell {
         flex-direction: column;
         gap: 5px;
@@ -885,195 +813,13 @@ tr:hover {
     th, td {
         padding: 8px 10px;
     }
-}
 
-/* 🔥 ДОБАВЛЕНО: Стили для админских функций */
-
-/* Стили для служебных полей администратора */
-.admin-service-header {
-    background-color: #e8f5e9 !important;
-    border-left: 3px solid #4caf50 !important;
-    color: #2e7d32 !important;
-    font-weight: 600 !important;
-}
-
-.admin-service-cell {
-    background-color: #f1f8e9 !important;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    color: #1b5e20 !important;
-}
-
-.admin-service-field-date {
-    font-family: 'Courier New', monospace !important;
-    font-size: 12px !important;
-    color: #0066cc !important;
-    background-color: #f0f8ff !important;
-}
-
-.admin-service-field-user {
-    font-style: italic !important;
-    color: #666 !important;
-    background-color: #f9f9f9 !important;
-}
-
-.admin-service-field-delete {
-    font-family: 'Courier New', monospace !important;
-    font-size: 11px !important;
-    color: #cc0000 !important;
-    background-color: #fff0f0 !important;
-    font-weight: bold !important;
-    border: 2px solid #ff6b6b !important;
-    border-radius: 4px !important;
-    padding: 2px 4px !important;
-}
-
-.admin-deleted-record {
-    background-color: #fff8f8 !important;
-    border-left: 4px solid #ff6b6b !important;
-    opacity: 0.9;
-}
-
-    .admin-deleted-record td {
-        background-color: #ffe6e6 !important;
+    .data-table th:first-child,
+    .data-table td:first-child {
+        position: static;
+        min-width: 40px;
     }
 
-.deleted-indicator {
-    background-color: #ff6b6b;
-    color: white;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 10px;
-    display: block;
-    margin-top: 3px;
-}
-
-/* Подсветка служебных полей в модальном окне */
-.admin-label {
-    color: #2e7d32;
-    font-weight: bold;
-}
-
-.admin-value {
-    font-family: 'Courier New', monospace;
-    color: #1b5e20;
-    background-color: #f1f8e9;
-    padding: 2px 6px;
-    border-radius: 3px;
-}
-
-/* Стили для кнопок действий администратора */
-.action-btn.admin-delete-btn {
-    background-color: #ff9800 !important;
-    color: white !important;
-}
-
-.action-btn.admin-restore-btn {
-    background-color: #2196F3 !important;
-    color: white !important;
-}
-
-.action-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
-
-/* Стили для заголовков служебных полей */
-.admin-service-header::after {
-    content: " 🔧";
-    font-size: 12px;
-    opacity: 0.8;
-}
-
-/* Анимация для выделения удаленных записей */
-@keyframes highlightDeleted {
-    0% {
-        background-color: #ffe6e6;
-    }
-
-    50% {
-        background-color: #ffcccc;
-    }
-
-    100% {
-        background-color: #ffe6e6;
-    }
-}
-
-.admin-deleted-record.highlight {
-    animation: highlightDeleted 2s ease-in-out;
-}
-
-/* Стили для иконок в действиях */
-.action-btn::before {
-    margin-right: 0;
-    font-size: 14px;
-}
-
-.action-btn.admin-delete-btn::before {
-    content: "🗑️";
-}
-
-.action-btn.admin-restore-btn::before {
-    content: "♻️";
-}
-
-/* Стили для тултипов администратора */
-.admin-tooltip {
-    position: relative;
-    display: inline-block;
-}
-
-    .admin-tooltip .tooltip-text {
-        visibility: hidden;
-        width: 200px;
-        background-color: #333;
-        color: #fff;
-        text-align: center;
-        border-radius: 6px;
-        padding: 5px;
-        position: absolute;
-        z-index: 1;
-        bottom: 125%;
-        left: 50%;
-        margin-left: -100px;
-        opacity: 0;
-        transition: opacity 0.3s;
-        font-size: 12px;
-    }
-
-    .admin-tooltip:hover .tooltip-text {
-        visibility: visible;
-        opacity: 1;
-    }
-
-/* Стили для бейджа администратора */
-.admin-badge {
-    display: inline-block;
-    background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
-    color: white;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: bold;
-    margin-left: 5px;
-    vertical-align: middle;
-}
-
-/* Стили для разделителя служебных полей */
-.service-fields-separator {
-    border-top: 2px dashed #4caf50;
-    margin: 10px 0;
-}
-
-    .service-fields-separator th {
-        background-color: #f1f8e9 !important;
-        color: #2e7d32 !important;
-        font-style: italic;
-    }
-
-/* Адаптивные стили для админских элементов */
-@media (max-width: 768px) {
     .admin-service-header,
     .admin-service-cell,
     .admin-service-field-date,
@@ -1082,20 +828,141 @@ tr:hover {
         font-size: 10px !important;
         padding: 4px 6px !important;
     }
+}
 
-    .action-btn {
-        min-width: 30px;
-        height: 30px;
-        font-size: 12px;
+@media (max-width: 480px) {
+    .nav-btn {
+        padding: 8px 15px;
+        font-size: 14px;
     }
 
-    .admin-badge {
-        font-size: 8px;
-        padding: 2px 6px;
+    #statisticsBtn {
+        padding: 10px 15px;
+        font-size: 14px;
+        margin-right: 10px;
+    }
+
+    .user-info {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .table-select {
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+
+    .create-data-btn, .generate-btn {
+        font-size: 14px;
+        padding: 10px 15px;
+    }
+
+    .header-top-section {
+        align-items: stretch;
+    }
+
+        .header-top-section .section-title {
+            text-align: center;
+        }
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
-/* Стили для индикатора режима администратора */
+/* Скроллбар */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #061f8a;
+    border-radius: 4px;
+}
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #050e6e;
+    }
+
+/* Стили для детального просмотра */
+.details-container {
+    display: grid;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #e1e1e1;
+}
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+.detail-label {
+    font-weight: 600;
+    color: #555;
+}
+
+.detail-value {
+    color: #333;
+}
+
+.detail-row .detail-label.admin-label {
+    color: #0066cc;
+    font-weight: bold;
+    border-left: 3px solid #0066cc;
+    padding-left: 10px;
+}
+
+.detail-row .detail-value.admin-value {
+    font-family: 'Courier New', monospace;
+    background-color: #f0f8ff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid #cce0ff;
+}
+
+/* Бейджи доступа */
+.access-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+    .access-badge.admin-only {
+        background-color: #ff9800;
+        color: white;
+    }
+
+    .access-badge.all-users {
+        background-color: #4caf50;
+        color: white;
+    }
+
+/* Индикатор режима администратора */
 .admin-mode-indicator {
     position: fixed;
     top: 10px;
@@ -1125,23 +992,33 @@ tr:hover {
     }
 }
 
-/* Стили для подвала администратора */
-.admin-footer-note {
-    background-color: #f1f8e9;
-    border: 1px solid #4caf50;
+/* Сообщения об ограничении доступа */
+.access-restricted-message {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
     border-radius: 8px;
-    padding: 10px;
-    margin-top: 20px;
+    padding: 15px;
+    margin: 15px 0;
     text-align: center;
-    font-size: 12px;
-    color: #2e7d32;
+    color: #856404;
 }
 
-/* Стили для контрастного текста администратора */
-.admin-highlight-text {
-    color: #ff5722;
-    font-weight: bold;
-    background-color: #fff3e0;
-    padding: 2px 6px;
-    border-radius: 4px;
+    .access-restricted-message h4 {
+        margin-top: 0;
+        color: #856404;
+    }
+
+    .access-restricted-message p {
+        margin-bottom: 10px;
+    }
+
+.admin-only-element {
+    border-left: 3px solid #ff9800;
+    padding-left: 10px;
+    margin: 10px 0;
 }
+
+    .admin-only-element::before {
+        content: "👑 ";
+        color: #ff9800;
+    }
