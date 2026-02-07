@@ -4,20 +4,36 @@ let currentData = [];
 let currentFilters = {};
 let sortColumn = '';
 let sortDirection = 'asc';
+let isInitialized = false;
 
-// Основная функция инициализации при загрузке страницы
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
+
 document.addEventListener('DOMContentLoaded', function () {
-    checkAuth();
-    setupEventListeners();
-    initDashboard();
-    updateUserInfo();
+    console.log('🚀 Инициализация панели управления...');
+    initializeDashboard();
 });
 
-// Инициализация панели управления
-function initDashboard() {
-    clearTable();
-    updateTableSelectBasedOnRole();
-    updateButtonStates();
+// Основная функция инициализации
+async function initializeDashboard() {
+    try {
+        // Проверяем авторизацию
+        await checkAuth();
+
+        // Настраиваем обработчики событий
+        setupEventListeners();
+
+        // Инициализируем панель
+        initDashboard();
+
+        // Обновляем информацию о пользователе
+        updateUserInfo();
+
+        isInitialized = true;
+        console.log('✅ Панель управления инициализирована');
+    } catch (error) {
+        console.error('❌ Ошибка инициализации:', error);
+        showNotification('Ошибка загрузки приложения', 'error');
+    }
 }
 
 // Проверка авторизации пользователя
@@ -25,82 +41,48 @@ async function checkAuth() {
     const token = localStorage.getItem('authToken');
 
     if (!token) {
+        console.log('🔐 Токен не найден, перенаправление на страницу входа');
         window.location.href = 'login.html';
         return;
     }
 
+    console.log('🔐 Проверка авторизации...');
+
     try {
-        // Проверяем валидность токена через API
+        // Пытаемся проверить токен через API
         await api.request('/auth/validate');
+        console.log('✅ Авторизация подтверждена');
     } catch (error) {
         if (error.status === 401) {
+            console.warn('⚠️ Токен недействителен, выход из системы');
             api.logout();
-            return;
+        } else {
+            console.warn('⚠️ Ошибка проверки токена, продолжаем работу:', error.message);
         }
     }
+}
 
-    updateUserInfo();
-    manageStatisticsButton();
+// Инициализация панели управления
+function initDashboard() {
+    console.log('📊 Инициализация панели...');
+
+    clearTable();
     updateTableSelectBasedOnRole();
-}
+    updateButtonStates();
 
-// Обновление информации о пользователе в интерфейсе
-function updateUserInfo() {
-    const userName = localStorage.getItem('userName');
-    const userRole = localStorage.getItem('userRole');
-
-    const userNameElement = document.getElementById('userName');
-    const userRoleElement = document.getElementById('userRole');
-
-    if (userNameElement && userName) {
-        userNameElement.textContent = userName;
-    }
-
-    if (userRoleElement && userRole) {
-        userRoleElement.textContent = formatDisplayRole(userRole);
-    }
-
-    // Показываем индикатор администратора
-    showAdminIndicator();
-}
-
-// Форматирование роли для отображения
-function formatDisplayRole(role) {
-    if (!role) return 'Пользователь';
-
-    const roleLower = role.toString().toLowerCase().trim();
-
-    const roleMap = {
-        'admin': 'Администратор',
-        'админ': 'Администратор',
-        'administrator': 'Администратор',
-        'manager': 'Менеджер',
-        'менеджер': 'Менеджер',
-        'user': 'Пользователь',
-        'пользователь': 'Пользователь',
-        'operator': 'Оператор',
-        'оператор': 'Оператор',
-        'technician': 'Техник',
-        'техник': 'Техник',
-        'supervisor': 'Супервайзер',
-        'супервайзер': 'Супервайзер'
-    };
-
-    for (const [key, value] of Object.entries(roleMap)) {
-        if (roleLower.includes(key)) {
-            return value;
-        }
-    }
-
-    return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+    setTimeout(() => {
+        showNotification('Панель управления готова к работе', 'success');
+    }, 500);
 }
 
 // Настройка обработчиков событий
 function setupEventListeners() {
+    console.log('🎮 Настройка обработчиков событий...');
+
     // Кнопка выхода
     const logoutBtn = document.querySelector('.logout-btn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', logout);
+        logoutBtn.addEventListener('click', handleLogout);
     }
 
     // Кнопка статистики
@@ -140,30 +122,82 @@ function setupEventListeners() {
         }
     });
 
-    // Закрытие модальных окон по кнопке
-    document.querySelectorAll('.close-modal').forEach(btn => {
-        btn.addEventListener('click', function () {
-            const modal = this.closest('.modal');
-            if (modal.id === 'detailsModal') {
-                closeModal();
-            } else if (modal.id === 'editModal') {
-                closeEditModal();
+    // Закрытие по кнопке
+    document.addEventListener('click', function (event) {
+        if (event.target.classList.contains('close-modal')) {
+            const modal = event.target.closest('.modal');
+            if (modal) {
+                if (modal.id === 'detailsModal') {
+                    closeModal();
+                } else if (modal.id === 'editModal') {
+                    closeEditModal();
+                }
             }
-        });
+        }
     });
 
-    // Обработка клавиши Escape для закрытия модальных окон
+    // Обработка клавиши Escape
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {
             closeModal();
             closeEditModal();
         }
     });
+
+    console.log('✅ Обработчики событий настроены');
+}
+
+// ==================== УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЕМ ====================
+
+// Обновление информации о пользователе
+function updateUserInfo() {
+    const userName = localStorage.getItem('userName') || 'Гость';
+    const userRole = localStorage.getItem('userRole') || 'user';
+
+    const userNameElement = document.getElementById('userName');
+    const userRoleElement = document.getElementById('userRole');
+
+    if (userNameElement) {
+        userNameElement.textContent = userName;
+    }
+
+    if (userRoleElement) {
+        userRoleElement.textContent = formatDisplayRole(userRole);
+    }
+
+    showAdminIndicator();
+    manageStatisticsButton();
+
+    console.log('👤 Информация о пользователе обновлена:', { userName, userRole });
+}
+
+// Форматирование роли для отображения
+function formatDisplayRole(role) {
+    if (!role) return 'Пользователь';
+
+    const roleLower = role.toString().toLowerCase().trim();
+
+    if (roleLower.includes('admin') || roleLower.includes('админ')) {
+        return 'Администратор';
+    } else if (roleLower.includes('manager') || roleLower.includes('менеджер')) {
+        return 'Менеджер';
+    } else if (roleLower.includes('operator') || roleLower.includes('оператор')) {
+        return 'Оператор';
+    } else if (roleLower.includes('tech') || roleLower.includes('техник')) {
+        return 'Техник';
+    } else if (roleLower.includes('supervisor') || roleLower.includes('супервайзер')) {
+        return 'Супервайзер';
+    } else if (roleLower.includes('user') || roleLower.includes('пользователь')) {
+        return 'Пользователь';
+    }
+
+    return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
 
 // Выход из системы
-function logout() {
+function handleLogout() {
     if (confirm('Вы уверены, что хотите выйти из системы?')) {
+        console.log('👋 Выход из системы...');
         api.logout();
     }
 }
@@ -179,7 +213,6 @@ function manageStatisticsButton() {
         statsBtn.style.display = 'inline-block';
         statsBtn.classList.remove('hidden');
 
-        // Добавляем специальные стили в зависимости от роли
         if (api.isAdmin()) {
             statsBtn.classList.add('admin-statistics-btn');
         } else if (api.isManager()) {
@@ -191,6 +224,24 @@ function manageStatisticsButton() {
     }
 }
 
+// Показать индикатор администратора
+function showAdminIndicator() {
+    if (!api.isAdmin()) return;
+
+    const oldIndicator = document.querySelector('.admin-mode-indicator');
+    if (oldIndicator) oldIndicator.remove();
+
+    const indicator = document.createElement('div');
+    indicator.className = 'admin-mode-indicator';
+    indicator.textContent = '👑 РЕЖИМ АДМИНИСТРАТОРА';
+    indicator.title = 'Вы вошли как администратор. Доступны все функции.';
+
+    document.body.appendChild(indicator);
+    console.log('👑 Индикатор режима администратора добавлен');
+}
+
+// ==================== УПРАВЛЕНИЕ ТАБЛИЦАМИ ====================
+
 // Обновление состояния кнопок
 function updateButtonStates() {
     const tableSelect = document.getElementById('tableSelect');
@@ -200,25 +251,33 @@ function updateButtonStates() {
     if (!tableSelect || !createBtn || !generateBtn) return;
 
     const isTableSelected = tableSelect.value !== '';
+    const isTableAvailable = isTableSelected ? isTableAvailableForRole(tableSelect.value) : false;
 
     // Кнопка "Создать данные"
-    createBtn.disabled = !isTableSelected;
-    createBtn.style.opacity = isTableSelected ? '1' : '0.5';
-    createBtn.style.cursor = isTableSelected ? 'pointer' : 'not-allowed';
-    createBtn.title = isTableSelected ?
-        `Создать запись в таблице "${formatTableName(tableSelect.value)}"` :
-        'Выберите таблицу для создания записей';
+    createBtn.disabled = !isTableSelected || !isTableAvailable;
+    createBtn.style.opacity = (isTableSelected && isTableAvailable) ? '1' : '0.5';
+    createBtn.style.cursor = (isTableSelected && isTableAvailable) ? 'pointer' : 'not-allowed';
+
+    if (isTableSelected && isTableAvailable) {
+        createBtn.title = `Создать запись в таблице "${formatTableName(tableSelect.value)}"`;
+    } else if (!isTableAvailable && isTableSelected) {
+        createBtn.title = 'Нет доступа к этой таблице';
+    } else {
+        createBtn.title = 'Выберите таблицу для создания записей';
+    }
 
     // Кнопка "Обновить данные"
-    generateBtn.disabled = !isTableSelected;
-    generateBtn.style.opacity = isTableSelected ? '1' : '0.5';
-    generateBtn.style.cursor = isTableSelected ? 'pointer' : 'not-allowed';
-    generateBtn.title = isTableSelected ?
-        `Обновить данные таблицы "${formatTableName(tableSelect.value)}"` :
-        'Выберите таблицу для обновления данных';
+    generateBtn.disabled = !isTableSelected || !isTableAvailable;
+    generateBtn.style.opacity = (isTableSelected && isTableAvailable) ? '1' : '0.5';
+    generateBtn.style.cursor = (isTableSelected && isTableAvailable) ? 'pointer' : 'not-allowed';
 
-    // Обновляем состояние таблицы выбора
-    updateTableSelectBasedOnRole();
+    if (isTableSelected && isTableAvailable) {
+        generateBtn.title = `Обновить данные таблицы "${formatTableName(tableSelect.value)}"`;
+    } else if (!isTableAvailable && isTableSelected) {
+        generateBtn.title = 'Нет доступа к этой таблице';
+    } else {
+        generateBtn.title = 'Выберите таблицу для обновления данных';
+    }
 }
 
 // Форматирование названия таблицы
@@ -239,14 +298,17 @@ function formatTableName(tableName) {
 function onTableSelect() {
     const tableSelect = document.getElementById('tableSelect');
 
+    console.log('📋 Выбрана таблица:', tableSelect.value);
+
     if (!tableSelect.value) {
         currentTable = '';
         clearTable();
         updateButtonStates();
+        showNotification('Таблица не выбрана', 'info');
         return;
     }
 
-    // Проверяем доступность таблицы для текущей роли
+    // Проверяем доступность таблицы
     if (!isTableAvailableForRole(tableSelect.value)) {
         showNotification('У вас нет доступа к этой таблице', 'error');
         tableSelect.value = '';
@@ -269,7 +331,6 @@ function onTableSelect() {
 function isTableAvailableForRole(tableName) {
     const isAdmin = api.isAdmin();
 
-    // Только администраторы могут видеть таблицы пользователей и ролей
     if ((tableName === 'users' || tableName === 'roles') && !isAdmin) {
         return false;
     }
@@ -277,7 +338,7 @@ function isTableAvailableForRole(tableName) {
     return true;
 }
 
-// Обновление доступности таблиц в зависимости от роли
+// Обновление доступности таблиц
 function updateTableSelectBasedOnRole() {
     const tableSelect = document.getElementById('tableSelect');
     if (!tableSelect) return;
@@ -289,30 +350,29 @@ function updateTableSelectBasedOnRole() {
         const option = options[i];
         const value = option.value;
 
-        if (value === '' || value === 'equipment' || value === 'fuel' || value === 'geyser' || value === 'repair') {
-            // Эти таблицы доступны всем
+        if (!value) continue;
+
+        const isAvailable = isTableAvailableForRole(value);
+
+        if (isAvailable) {
             option.style.display = 'block';
             option.disabled = false;
             option.classList.remove('hidden', 'admin-only');
-        } else if (value === 'users' || value === 'roles') {
-            // Эти таблицы только для администраторов
-            if (isAdmin) {
-                option.style.display = 'block';
-                option.disabled = false;
-                option.classList.remove('hidden');
-                option.classList.add('admin-only');
-            } else {
-                option.style.display = 'none';
-                option.disabled = true;
-                option.classList.add('hidden');
 
-                // Если эта таблица была выбрана, сбрасываем выбор
-                if (tableSelect.value === value) {
-                    tableSelect.value = '';
-                    currentTable = '';
-                    clearTable();
-                    showNotification('Доступ к этой таблице ограничен. Выберите другую таблицу.', 'warning');
-                }
+            if (value === 'users' || value === 'roles') {
+                option.classList.add('admin-only');
+                option.title = 'Только для администраторов';
+            }
+        } else {
+            option.style.display = 'none';
+            option.disabled = true;
+            option.classList.add('hidden');
+
+            if (tableSelect.value === value) {
+                tableSelect.value = '';
+                currentTable = '';
+                clearTable();
+                showNotification('Доступ к этой таблице ограничен. Выберите другую таблицу.', 'warning');
             }
         }
     }
@@ -320,12 +380,16 @@ function updateTableSelectBasedOnRole() {
     updateButtonStates();
 }
 
+// ==================== ЗАГРУЗКА И ОТОБРАЖЕНИЕ ДАННЫХ ====================
+
 // Загрузка и отображение данных таблицы
 async function generateData() {
     if (!currentTable) {
         showNotification('Выберите таблицу для отображения данных', 'warning');
         return;
     }
+
+    console.log(`🔄 Загрузка данных для таблицы: ${currentTable}`);
 
     const loading = document.getElementById('loading');
     const noData = document.getElementById('noData');
@@ -336,19 +400,8 @@ async function generateData() {
     tableContainer.style.display = 'none';
 
     try {
-        console.log(`🔄 Загрузка данных для таблицы: ${currentTable}`);
         currentData = await api.getTableData(currentTable);
         console.log(`✅ Данные получены: ${currentData?.length || 0} записей`);
-
-        // Применяем фильтры, если они есть
-        if (Object.keys(currentFilters).length > 0) {
-            currentData = applyFilters(currentData);
-        }
-
-        // Применяем сортировку, если она есть
-        if (sortColumn) {
-            currentData = sortData(currentData, sortColumn, sortDirection);
-        }
 
         if (!currentData || currentData.length === 0) {
             noData.textContent = 'В таблице нет данных';
@@ -356,38 +409,58 @@ async function generateData() {
             tableContainer.style.display = 'none';
             showNotification('Данные не найдены', 'info');
         } else {
+            if (Object.keys(currentFilters).length > 0) {
+                currentData = applyFilters(currentData);
+            }
+
+            if (sortColumn) {
+                currentData = sortData(currentData, sortColumn, sortDirection);
+            }
+
             displayTableData(currentData);
             tableContainer.style.display = 'block';
+
             showNotification(`Загружено записей: ${currentData.length}`, 'success');
         }
     } catch (error) {
         console.error('❌ Ошибка при загрузке данных:', error);
-        noData.textContent = 'Ошибка загрузки данных: ' + (error.message || 'Неизвестная ошибка');
+
+        noData.textContent = 'Ошибка загрузки данных';
+        if (error.message) {
+            noData.innerHTML = `Ошибка загрузки данных:<br><small>${escapeHtml(error.message)}</small>`;
+        }
         noData.style.display = 'block';
 
         let errorMessage = 'Ошибка при загрузке данных';
         if (error.status === 400) {
-            errorMessage = 'Неверный запрос к серверу.';
+            errorMessage = 'Неверный запрос к серверу';
         } else if (error.status === 404) {
-            errorMessage = 'Таблица не найдена.';
+            errorMessage = 'Таблица не найдена';
         } else if (error.status === 405) {
-            errorMessage = 'Метод не разрешен.';
+            errorMessage = 'Метод не разрешен';
         } else if (error.status === 403) {
-            errorMessage = 'Нет доступа к этой таблице.';
+            errorMessage = 'Нет доступа к этой таблице';
+        } else if (error.status === 401) {
+            errorMessage = 'Требуется авторизация';
+            api.logout();
+            return;
         } else if (error.status === 500) {
-            errorMessage = 'Внутренняя ошибка сервера.';
-        } else if (error.message.includes('подключиться к серверу')) {
-            errorMessage = 'Не удалось подключиться к серверу. Проверьте подключение к интернету.';
+            errorMessage = 'Внутренняя ошибка сервера';
+        } else if (error.message && error.message.includes('подключиться к серверу')) {
+            errorMessage = 'Не удалось подключиться к серверу. Проверьте подключение к интернету';
         }
 
-        showNotification(`${errorMessage} (${error.status || 'нет статуса'})`, 'error');
+        showNotification(`${errorMessage}`, 'error');
     } finally {
         loading.classList.remove('active');
     }
 }
 
-// Применение фильтров к данным
+// Применение фильтров
 function applyFilters(data) {
+    if (!data || !Array.isArray(data)) return [];
+    if (Object.keys(currentFilters).length === 0) return data;
+
     return data.filter(item => {
         return Object.entries(currentFilters).every(([key, filterValue]) => {
             const itemValue = item[key];
@@ -403,15 +476,16 @@ function applyFilters(data) {
 
 // Сортировка данных
 function sortData(data, column, direction) {
+    if (!data || !Array.isArray(data)) return [];
+    if (data.length === 0) return data;
+
     return [...data].sort((a, b) => {
         let aValue = a[column];
         let bValue = b[column];
 
-        // Обработка null/undefined
         if (aValue === null || aValue === undefined) aValue = '';
         if (bValue === null || bValue === undefined) bValue = '';
 
-        // Приведение к строке для сравнения
         const aStr = aValue.toString().toLowerCase();
         const bStr = bValue.toString().toLowerCase();
 
@@ -425,6 +499,8 @@ function sortData(data, column, direction) {
 
 // Проверка, удалена ли запись
 function isRecordDeleted(record) {
+    if (!record || typeof record !== 'object') return false;
+
     const deleteFields = [
         'whenDeleted', 'WhenDeleted', 'dateDeleted', 'DateDeleted',
         'deletedAt', 'DeletedAt', 'isDeleted', 'IsDeleted', 'isdeleted'
@@ -437,7 +513,6 @@ function isRecordDeleted(record) {
             if (typeof value === 'boolean') {
                 return value === true;
             }
-            // Если это строка или число (например, дата удаления)
             return true;
         }
     }
@@ -445,135 +520,12 @@ function isRecordDeleted(record) {
     return false;
 }
 
-// Получение скрытых полей для текущей роли
-function getHiddenFieldsForRole() {
-    const isAdmin = api.isAdmin();
-
-    if (isAdmin) {
-        return ['passwordHash', 'resetToken', 'resetTokenExpiry'];
-    } else {
-        return [
-            'passwordHash', 'resetToken', 'resetTokenExpiry', 'password',
-            'dateOfRecording', 'dateOfChange', 'whoRecorded',
-            'whoChanged', 'whenDeleted', 'deletedAt', 'isDeleted',
-            'Date_of_recording', 'Date_of_change', 'Who_recorded',
-            'Who_changed', 'WhenDeleted',
-            'date_of_recording', 'date_of_change', 'who_recorded',
-            'who_changed', 'whendeleted',
-            'createdAt', 'updatedAt', 'createdBy', 'updatedBy'
-        ];
-    }
-}
-
-// Проверка, является ли поле ID-полем
-function isIdColumn(header) {
-    if (!header) return false;
-    const headerLower = header.toString().toLowerCase();
-
-    // Исключаем слова, которые содержат "id" но не являются ID-полями
-    const exceptions = ['idea', 'identity', 'idle', 'kid', 'solid', 'video'];
-
-    if (exceptions.some(exception => headerLower.includes(exception))) {
-        return false;
-    }
-
-    // Проверяем на наличие "id" как отдельного слова или в составе
-    const idPatterns = ['^id$', '_id$', 'id_', '_id_'];
-    return idPatterns.some(pattern => {
-        const regex = new RegExp(pattern);
-        return regex.test(headerLower);
-    });
-}
-
-// Проверка, является ли поле служебным
-function isServiceColumn(header) {
-    if (!header) return false;
-    const headerLower = header.toString().toLowerCase();
-
-    const serviceKeywords = [
-        'record', 'change', 'who', 'when', 'delete',
-        'created', 'updated', 'modified', 'by', 'dateof', 'ofrecording',
-        'ofchange', 'whorecorded', 'whochanged', 'whendeleted'
-    ];
-
-    return serviceKeywords.some(keyword => headerLower.includes(keyword));
-}
-
-// Получение порядка сортировки служебных полей
-function getServiceFieldOrder(header) {
-    if (!header) return 999;
-
-    const headerLower = header.toString().toLowerCase();
-    const cleanHeader = headerLower.replace(/[^a-z]/g, '');
-
-    if (cleanHeader.includes('daterecord') || cleanHeader.includes('recorddate') || cleanHeader.includes('dateofrecord')) {
-        return 1;
-    } else if (cleanHeader.includes('datechange') || cleanHeader.includes('changedate') || cleanHeader.includes('dateofchange')) {
-        return 2;
-    } else if (cleanHeader.includes('whorecord') || cleanHeader.includes('recordwho')) {
-        return 3;
-    } else if (cleanHeader.includes('whochange') || cleanHeader.includes('changewho')) {
-        return 4;
-    } else if (cleanHeader.includes('whendelete') || cleanHeader.includes('deletewhen')) {
-        return 5;
-    } else if (cleanHeader.includes('createdat') || cleanHeader.includes('createddate') || cleanHeader.includes('datecreated')) {
-        return 6;
-    } else if (cleanHeader.includes('updatedat') || cleanHeader.includes('updateddate') || cleanHeader.includes('dateupdated')) {
-        return 7;
-    } else if (cleanHeader.includes('date') && cleanHeader.includes('record')) {
-        return 1;
-    } else if (cleanHeader.includes('date') && cleanHeader.includes('change')) {
-        return 2;
-    } else if (cleanHeader.includes('who') && cleanHeader.includes('record')) {
-        return 3;
-    } else if (cleanHeader.includes('who') && cleanHeader.includes('change')) {
-        return 4;
-    } else if (cleanHeader.includes('when') && cleanHeader.includes('delete')) {
-        return 5;
-    } else if (cleanHeader.includes('created')) {
-        return 6;
-    } else if (cleanHeader.includes('updated')) {
-        return 7;
-    }
-
-    return 999;
-}
-
-// Проверка, является ли поле только для чтения
-function isReadOnlyServiceField(header) {
-    const order = getServiceFieldOrder(header);
-    // Поля с порядком 1-5 (Когда создали, Когда изменили, Кто создал, Кто изменил, Когда удалено) должны быть только для чтения
-    return order >= 1 && order <= 5;
-}
-
-// Сортировка заголовков для администратора
-function sortHeadersForAdmin(headers) {
-    const isAdmin = api.isAdmin();
-
-    if (!isAdmin) {
-        return headers;
-    }
-
-    const regularHeaders = [];
-    const serviceHeaders = [];
-
-    headers.forEach(header => {
-        const order = getServiceFieldOrder(header);
-        if (order < 999) {
-            serviceHeaders.push({ header, order });
-        } else {
-            regularHeaders.push(header);
-        }
-    });
-
-    serviceHeaders.sort((a, b) => a.order - b.order);
-    const sortedServiceHeaders = serviceHeaders.map(item => item.header);
-
-    return [...regularHeaders, ...sortedServiceHeaders];
-}
+// ==================== ОТОБРАЖЕНИЕ ТАБЛИЦЫ ====================
 
 // Отображение данных таблицы
 function displayTableData(data) {
+    console.log(`📋 Отображение данных таблицы: ${data.length} записей`);
+
     const tableHeader = document.getElementById('tableHeader');
     const tableBody = document.getElementById('tableBody');
 
@@ -592,77 +544,67 @@ function displayTableData(data) {
         !hiddenFields.includes(header.toLowerCase())
     );
 
-    // Скрываем ID колонки для не-администраторов
     if (shouldHideIdColumns()) {
-        const beforeFilterCount = displayHeaders.length;
         displayHeaders = displayHeaders.filter(header => !isIdColumn(header));
-        console.log(`🆔 Отфильтровано ID полей: ${beforeFilterCount - displayHeaders.length}`);
     }
 
-    // Сортируем заголовки для администратора
     displayHeaders = sortHeadersForAdmin(displayHeaders);
 
-    // Создаем строку заголовков
     const headerRow = document.createElement('tr');
 
-    // Колонка с номером
     const numberTh = document.createElement('th');
     numberTh.textContent = '№';
     numberTh.style.width = '60px';
     numberTh.style.textAlign = 'center';
-    numberTh.style.cursor = 'pointer';
-    numberTh.title = 'Нажмите для сортировки';
-    numberTh.addEventListener('click', () => sortTable('number'));
+    numberTh.title = 'Порядковый номер';
     headerRow.appendChild(numberTh);
 
-    // Заголовки столбцов
-    displayHeaders.forEach((header, index) => {
+    displayHeaders.forEach((header) => {
         const th = document.createElement('th');
         th.textContent = formatHeader(header);
         th.style.cursor = 'pointer';
         th.title = 'Нажмите для сортировки';
-        th.addEventListener('click', () => sortTable(header));
+        th.addEventListener('click', () => handleSortClick(header));
 
-        const order = getServiceFieldOrder(header);
-        const isServiceField = order < 999;
+        if (api.isAdmin()) {
+            const order = getServiceFieldOrder(header);
+            const isServiceField = order < 999;
 
-        if (api.isAdmin() && isServiceField) {
-            th.classList.add('admin-service-header');
-            th.title = 'Служебное поле администратора';
-        }
+            if (isServiceField) {
+                th.classList.add('admin-service-header');
+                th.title = 'Служебное поле администратора';
+            }
 
-        if (api.isAdmin() && isIdColumn(header)) {
-            th.style.backgroundColor = '#fff0f0';
-            th.style.color = '#990000';
-            th.style.fontWeight = 'bold';
-            th.title = 'ID поле';
+            if (isIdColumn(header)) {
+                th.style.backgroundColor = '#fff0f0';
+                th.style.color = '#990000';
+                th.style.fontWeight = 'bold';
+                th.title = 'ID поле';
+            }
         }
 
         headerRow.appendChild(th);
     });
 
-    // Колонка действий
     const actionsTh = document.createElement('th');
     actionsTh.textContent = 'Действия';
-    actionsTh.style.width = '200px';
+    actionsTh.style.width = '180px';
     actionsTh.style.textAlign = 'center';
+    actionsTh.title = 'Доступные действия с записью';
     headerRow.appendChild(actionsTh);
 
     tableHeader.appendChild(headerRow);
 
-    // Заполняем строки данными
     data.forEach((row, rowIndex) => {
         const tableRow = document.createElement('tr');
 
         const isDeleted = isRecordDeleted(row);
         const isAdmin = api.isAdmin();
 
-        // Скрываем удаленные записи для не-администраторов
         if (!isAdmin && isDeleted) {
             return;
         }
 
-        // Стили для удаленных записей (только для администраторов)
         if (isAdmin && isDeleted) {
             tableRow.classList.add('admin-deleted-record');
             tableRow.style.backgroundColor = '#fff8f8';
@@ -670,7 +612,6 @@ function displayTableData(data) {
             tableRow.style.opacity = '0.9';
         }
 
-        // Колонка с номером
         const numberTd = document.createElement('td');
         numberTd.textContent = rowIndex + 1;
         numberTd.style.textAlign = 'center';
@@ -681,13 +622,13 @@ function displayTableData(data) {
             const indicator = document.createElement('span');
             indicator.className = 'deleted-indicator';
             indicator.textContent = 'Удалено';
+            indicator.title = 'Эта запись помечена как удаленная';
             numberTd.appendChild(indicator);
         }
 
         tableRow.appendChild(numberTd);
 
-        // Данные строки
-        displayHeaders.forEach((header, colIndex) => {
+        displayHeaders.forEach((header) => {
             const td = document.createElement('td');
             let value = row[header];
             value = escapeHtml(formatValue(value));
@@ -738,37 +679,52 @@ function displayTableData(data) {
             tableRow.appendChild(td);
         });
 
-        // Колонка действий
-        const actionsTd = document.createElement('td');
-        actionsTd.className = 'actions-cell';
-        actionsTd.style.textAlign = 'center';
-
-        // Кнопка просмотра
-        const viewBtn = createActionButton('👁', 'Просмотреть подробности', '#4CAF50');
-        viewBtn.onclick = () => viewDetails(row, displayHeaders);
-        actionsTd.appendChild(viewBtn);
-
-        // Кнопка редактирования (не показываем для удаленных записей у обычных пользователей)
         if (!isDeleted || isAdmin) {
+            const actionsTd = document.createElement('td');
+            actionsTd.className = 'actions-cell';
+            actionsTd.style.textAlign = 'center';
+
+            const viewBtn = createActionButton('👁', 'Просмотреть подробности', '#4CAF50');
+            viewBtn.onclick = () => viewDetails(row, displayHeaders);
+            actionsTd.appendChild(viewBtn);
+
             const editBtn = createActionButton('✏️', 'Редактировать запись', '#FF9800');
             editBtn.onclick = () => handleEditRecord(row);
             actionsTd.appendChild(editBtn);
+
+            const actionBtnText = isAdmin && isDeleted ? '♻️' : '🗑️';
+            const actionBtnTitle = isAdmin && isDeleted ? 'Восстановить запись' :
+                isAdmin ? 'Пометить как удаленную' : 'Удалить запись';
+            const actionBtnColor = isAdmin && isDeleted ? '#2196F3' :
+                isAdmin ? '#ff9800' : '#f44336';
+
+            const actionBtn = createActionButton(actionBtnText, actionBtnTitle, actionBtnColor);
+            actionBtn.onclick = () => handleDeleteRestore(row);
+            actionsTd.appendChild(actionBtn);
+
+            tableRow.appendChild(actionsTd);
         }
 
-        // Кнопка удаления/восстановления
-        const actionBtn = createActionButton(
-            isAdmin && isDeleted ? '♻️' : '🗑️',
-            isAdmin && isDeleted ? 'Восстановить запись' :
-                isAdmin ? 'Пометить как удаленную' : 'Удалить запись',
-            isAdmin && isDeleted ? '#2196F3' :
-                isAdmin ? '#ff9800' : '#f44336'
-        );
-        actionBtn.onclick = () => handleDeleteRestore(row);
-        actionsTd.appendChild(actionBtn);
-
-        tableRow.appendChild(actionsTd);
         tableBody.appendChild(tableRow);
     });
+}
+
+// Обработка сортировки
+function handleSortClick(column) {
+    if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortColumn = column;
+        sortDirection = 'asc';
+    }
+
+    currentData = sortData(currentData, sortColumn, sortDirection);
+    displayTableData(currentData);
+
+    showNotification(
+        `Таблица отсортирована по "${formatHeader(column)}" (${sortDirection === 'asc' ? 'возрастание' : 'убывание'})`,
+        'info'
+    );
 }
 
 // Создание кнопки действия
@@ -784,44 +740,138 @@ function createActionButton(text, title, color) {
     button.style.borderRadius = '4px';
     button.style.cursor = 'pointer';
     button.style.fontSize = '14px';
-    button.style.minWidth = '40px';
+    button.style.minWidth = '36px';
     button.style.margin = '2px';
     button.style.transition = 'all 0.2s';
+    button.style.display = 'flex';
+    button.style.alignItems = 'center';
+    button.style.justifyContent = 'center';
 
-    button.onmouseenter = () => {
+    button.addEventListener('mouseenter', () => {
         button.style.transform = 'scale(1.05)';
         button.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-    };
+    });
 
-    button.onmouseleave = () => {
+    button.addEventListener('mouseleave', () => {
         button.style.transform = 'scale(1)';
         button.style.boxShadow = 'none';
-    };
+    });
 
     return button;
 }
 
-// Сортировка таблицы
-function sortTable(column) {
-    if (column === 'number') {
-        // Сортировка по номеру - просто переворачиваем массив
-        currentData.reverse();
-    } else {
-        if (sortColumn === column) {
-            // Меняем направление сортировки
-            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            // Новая колонка для сортировки
-            sortColumn = column;
-            sortDirection = 'asc';
-        }
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ТАБЛИЦ ====================
 
-        currentData = sortData(currentData, sortColumn, sortDirection);
+// Получение скрытых полей
+function getHiddenFieldsForRole() {
+    const isAdmin = api.isAdmin();
+
+    if (isAdmin) {
+        return ['passwordHash', 'resetToken', 'resetTokenExpiry'];
+    } else {
+        return [
+            'passwordHash', 'resetToken', 'resetTokenExpiry', 'password',
+            'dateOfRecording', 'dateOfChange', 'whoRecorded',
+            'whoChanged', 'whenDeleted', 'deletedAt', 'isDeleted',
+            'Date_of_recording', 'Date_of_change', 'Who_recorded',
+            'Who_changed', 'WhenDeleted',
+            'date_of_recording', 'date_of_change', 'who_recorded',
+            'who_changed', 'whendeleted',
+            'createdAt', 'updatedAt', 'createdBy', 'updatedBy'
+        ];
+    }
+}
+
+// Проверка необходимости скрытия ID колонок
+function shouldHideIdColumns() {
+    return !api.isAdmin();
+}
+
+// Проверка, является ли поле ID
+function isIdColumn(header) {
+    if (!header) return false;
+    const headerLower = header.toString().toLowerCase();
+
+    const exceptions = ['idea', 'identity', 'idle', 'kid', 'solid', 'video', 'hide', 'mid'];
+
+    if (exceptions.some(exception => headerLower.includes(exception))) {
+        return false;
     }
 
-    displayTableData(currentData);
-    showNotification(`Таблица отсортирована по столбцу "${formatHeader(column)}" (${sortDirection === 'asc' ? 'возрастание' : 'убывание'})`, 'info');
+    const idPatterns = ['^id$', '_id$', 'id_', '_id_'];
+    return idPatterns.some(pattern => {
+        const regex = new RegExp(pattern);
+        return regex.test(headerLower);
+    });
 }
+
+// Получение порядка служебных полей
+function getServiceFieldOrder(header) {
+    if (!header) return 999;
+
+    const headerLower = header.toString().toLowerCase();
+    const cleanHeader = headerLower.replace(/[^a-z]/g, '');
+
+    const serviceOrder = {
+        'daterecord': 1,
+        'datechange': 2,
+        'whorecord': 3,
+        'whochange': 4,
+        'whendelete': 5,
+        'createdat': 6,
+        'updatedat': 7
+    };
+
+    for (const [pattern, order] of Object.entries(serviceOrder)) {
+        if (cleanHeader.includes(pattern)) {
+            return order;
+        }
+    }
+
+    if (cleanHeader.includes('date') && cleanHeader.includes('record')) return 1;
+    if (cleanHeader.includes('date') && cleanHeader.includes('change')) return 2;
+    if (cleanHeader.includes('who') && cleanHeader.includes('record')) return 3;
+    if (cleanHeader.includes('who') && cleanHeader.includes('change')) return 4;
+    if (cleanHeader.includes('when') && cleanHeader.includes('delete')) return 5;
+    if (cleanHeader.includes('created')) return 6;
+    if (cleanHeader.includes('updated')) return 7;
+
+    return 999;
+}
+
+// Проверка, является ли поле только для чтения
+function isReadOnlyServiceField(header) {
+    const order = getServiceFieldOrder(header);
+    return order >= 1 && order <= 5;
+}
+
+// Сортировка заголовков для администратора
+function sortHeadersForAdmin(headers) {
+    const isAdmin = api.isAdmin();
+
+    if (!isAdmin || !headers || headers.length === 0) {
+        return headers || [];
+    }
+
+    const regularHeaders = [];
+    const serviceHeaders = [];
+
+    headers.forEach(header => {
+        const order = getServiceFieldOrder(header);
+        if (order < 999) {
+            serviceHeaders.push({ header, order });
+        } else {
+            regularHeaders.push(header);
+        }
+    });
+
+    serviceHeaders.sort((a, b) => a.order - b.order);
+    const sortedServiceHeaders = serviceHeaders.map(item => item.header);
+
+    return [...regularHeaders, ...sortedServiceHeaders];
+}
+
+// ==================== ОБЩАЯ ФОРМА ДЛЯ СОЗДАНИЯ И РЕДАКТИРОВАНИЯ ====================
 
 // Показать модальное окно создания записи
 function showCreateModal() {
@@ -830,6 +880,47 @@ function showCreateModal() {
         return;
     }
 
+    console.log(`➕ Открытие формы создания для таблицы: ${currentTable}`);
+
+    // Создаем пустую запись с правильной структурой
+    const emptyRecord = createEmptyRecord();
+
+    // Вызываем общую функцию формы в режиме создания
+    showRecordModal(emptyRecord, true);
+}
+
+// Показать модальное окно редактирования записи
+function handleEditRecord(record) {
+    if (!record) {
+        console.error('Не передана запись для редактирования');
+        return;
+    }
+
+    console.log('✏️ Открытие формы редактирования записи');
+
+    const isDeleted = isRecordDeleted(record);
+    const isAdmin = api.isAdmin();
+
+    if (isDeleted) {
+        if (isAdmin) {
+            if (!confirm('Эта запись удалена. Хотите восстановить и редактировать её?')) {
+                return;
+            }
+
+            handleDeleteRestore(record);
+            return;
+        } else {
+            showNotification('Нельзя редактировать удаленную запись', 'error');
+            return;
+        }
+    }
+
+    // Вызываем общую функцию формы в режиме редактирования
+    showRecordModal(record, false);
+}
+
+// Общая функция для отображения формы записи (создание/редактирование)
+function showRecordModal(record, isCreate = false) {
     // Создаем модальное окно, если его нет
     if (!document.getElementById('editModal')) {
         createEditModal();
@@ -839,32 +930,50 @@ function showCreateModal() {
     const modalContent = document.getElementById('editModalContent');
 
     if (!modal || !modalContent) {
-        console.error('Не удалось найти элементы модального окна редактирования');
-        showNotification('Ошибка при открытии окна создания', 'error');
+        console.error('Не удалось найти элементы модального окна');
+        showNotification('Ошибка при открытии формы', 'error');
         return;
     }
 
+    const recordId = isCreate ? null : api.getRecordId(record);
     const isAdmin = api.isAdmin();
+    const isDeleted = isCreate ? false : isRecordDeleted(record);
     const tableName = formatTableName(currentTable);
 
-    let html = `<h3>Создание новой записи в таблице "${tableName}"</h3>`;
+    // Определяем заголовок
+    const title = isCreate ?
+        `Создание новой записи в таблице "${tableName}"` :
+        `Редактирование записи`;
 
-    // Добавляем информацию о доступных полях для администратора
-    if (isAdmin) {
-        html += `<div class="admin-only-element">
-                    <small>Режим администратора: вы видите все поля, включая служебные</small>
+    let html = `<h3>${title}</h3>`;
+
+    if (!isCreate && isDeleted && isAdmin) {
+        html += `<div class="admin-only-element" style="color: #ff6b6b;">
+                    <strong>⚠️ Эта запись удалена</strong><br>
+                    <small>Вы можете восстановить её, сняв отметку об удалении</small>
                  </div>`;
     }
 
-    html += '<form id="createForm" class="edit-form">';
+    if (isAdmin) {
+        html += `<div class="admin-only-element">
+                    <small>👑 <strong>Режим администратора:</strong> вы видите все поля, включая служебные</small>
+                 </div>`;
+    }
 
-    // Определяем поля для формы на основе структуры таблицы
-    const sampleRecord = currentData && currentData.length > 0 ? currentData[0] : {};
-    let fields = Object.keys(sampleRecord);
+    html += `<form id="recordForm" class="edit-form">`;
 
-    // Для новых таблиц используем типовые поля
-    if (fields.length === 0) {
-        fields = getDefaultFieldsForTable(currentTable);
+    // Определяем поля для формы
+    let fields = [];
+    if (isCreate) {
+        // Для создания берем поля из существующих данных или используем типовые
+        if (currentData && currentData.length > 0) {
+            fields = Object.keys(currentData[0]);
+        } else {
+            fields = getDefaultFieldsForTable(currentTable);
+        }
+    } else {
+        // Для редактирования берем поля из записи
+        fields = Object.keys(record);
     }
 
     // Фильтруем поля в зависимости от роли
@@ -878,65 +987,151 @@ function showCreateModal() {
 
     // Создаем поля формы
     fields.forEach(key => {
+        // Определяем значение для поля
+        let value = '';
+        let fieldType = 'text';
+
+        if (!isCreate) {
+            value = record[key];
+        }
+
+        // Определяем тип поля на основе значения или имени поля
+        if (typeof value === 'boolean') {
+            fieldType = 'boolean';
+        } else if (isDateColumn(key, value)) {
+            fieldType = 'date';
+        } else if (key.toLowerCase() === 'password') {
+            fieldType = 'password';
+        } else if (isIdColumn(key)) {
+            fieldType = 'id';
+        } else if (isReadOnlyServiceField(key)) {
+            fieldType = 'readonly';
+        }
+
         const label = escapeHtml(formatHeader(key));
-        const isReadOnlyService = isReadOnlyServiceField(key);
-        const isIdField = isIdColumn(key);
-        const sampleValue = sampleRecord[key];
-        const isPasswordField = key.toLowerCase() === 'password';
-        const isBooleanField = typeof sampleValue === 'boolean';
-        const isDateField = isDateColumn(key, sampleValue);
+        const inputId = `field_${key}`;
+        const inputName = key;
 
         html += `<div class="form-group">`;
-        html += `<label for="${escapeHtml(key)}">${label}:</label>`;
+        html += `<label for="${inputId}">${label}:</label>`;
 
-        if (isReadOnlyService || isIdField) {
-            // Поля только для чтения
-            html += `<input type="text" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
-                           value="" class="form-input" readonly>
-                    <small class="readonly-note">Это поле заполняется автоматически</small>`;
-        } else if (isBooleanField) {
-            // Булевы поля
-            html += `<select id="${escapeHtml(key)}" name="${escapeHtml(key)}" class="form-input">
-                        <option value="true">Да</option>
-                        <option value="false" selected>Нет</option>
-                     </select>`;
-        } else if (isDateField) {
-            // Поля даты
-            html += `<input type="datetime-local" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
-                           class="form-input">`;
-        } else if (isPasswordField) {
-            // Поля пароля
-            html += `<input type="password" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
-                           placeholder="Введите пароль" class="form-input" required>`;
-        } else {
-            // Обычные текстовые поля
-            html += `<input type="text" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
-                           class="form-input" placeholder="Введите значение">`;
+        switch (fieldType) {
+            case 'boolean':
+                const boolValue = value === true || value === 'true';
+                html += `<select id="${inputId}" name="${inputName}" class="form-input">
+                            <option value="true" ${boolValue ? 'selected' : ''}>Да</option>
+                            <option value="false" ${!boolValue ? 'selected' : ''}>Нет</option>
+                         </select>`;
+                break;
+
+            case 'date':
+                const dateValue = formatDateForInput(value);
+                html += `<input type="datetime-local" id="${inputId}" name="${inputName}" 
+                               value="${dateValue}" class="form-input">`;
+                break;
+
+            case 'password':
+                html += `<input type="password" id="${inputId}" name="${inputName}" 
+                               placeholder="${isCreate ? 'Введите пароль' : 'Оставьте пустым, чтобы не менять'}" 
+                               class="form-input" ${isCreate ? 'required' : ''}>`;
+                if (!isCreate) {
+                    html += `<small class="field-hint">Заполните только если хотите изменить пароль</small>`;
+                }
+                break;
+
+            case 'id':
+            case 'readonly':
+                const displayValue = isCreate ? '' : escapeHtml(formatValueForInput(value));
+                html += `<input type="text" id="${inputId}" name="${inputName}" 
+                               value="${displayValue}" class="form-input" readonly>
+                        <small class="readonly-note">${fieldType === 'id' ? 'ID нельзя изменить' : 'Это поле заполняется автоматически'}</small>`;
+                break;
+
+            default:
+                const textValue = escapeHtml(formatValueForInput(value));
+                html += `<input type="text" id="${inputId}" name="${inputName}" 
+                               value="${textValue}" class="form-input" placeholder="Введите значение">`;
+                break;
         }
 
         html += `</div>`;
     });
 
+    // Кнопки формы
+    const submitText = isCreate ? 'Создать запись' : 'Сохранить изменения';
+    const submitIcon = isCreate ? '➕' : '💾';
+
     html += `<div class="modal-actions">
-                <button type="submit" class="btn btn-primary">Создать</button>
-                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-icon">${submitIcon}</span> ${submitText}
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">
+                    <span class="btn-icon">×</span> Отмена
+                </button>
              </div>`;
+
     html += '</form>';
 
     modalContent.innerHTML = html;
     modal.style.display = 'flex';
 
     // Настраиваем обработчик формы
-    const form = document.getElementById('createForm');
+    const form = document.getElementById('recordForm');
     if (form) {
         form.onsubmit = async function (e) {
             e.preventDefault();
-            await submitCreateForm(form);
+            if (isCreate) {
+                await submitCreateForm(form);
+            } else {
+                await submitEditForm(recordId, form);
+            }
         };
     }
+
+    console.log(`✅ Форма ${isCreate ? 'создания' : 'редактирования'} отображена`);
 }
 
-// Получение полей по умолчанию для таблицы
+// Создание пустой записи с правильной структурой
+function createEmptyRecord() {
+    const emptyRecord = {};
+
+    // Определяем поля на основе существующих данных
+    if (currentData && currentData.length > 0) {
+        const sampleRecord = currentData[0];
+
+        for (const key in sampleRecord) {
+            const value = sampleRecord[key];
+
+            if (typeof value === 'boolean') {
+                emptyRecord[key] = false;
+            } else if (typeof value === 'number') {
+                emptyRecord[key] = 0;
+            } else if (isDateColumn(key, value)) {
+                emptyRecord[key] = '';
+            } else if (key.toLowerCase() === 'password') {
+                emptyRecord[key] = '';
+            } else if (isIdColumn(key)) {
+                // ID поля оставляем пустыми - они сгенерируются на сервере
+                emptyRecord[key] = '';
+            } else if (isReadOnlyServiceField(key)) {
+                // Служебные поля оставляем пустыми
+                emptyRecord[key] = '';
+            } else {
+                emptyRecord[key] = '';
+            }
+        }
+    } else {
+        // Используем типовые поля
+        const fields = getDefaultFieldsForTable(currentTable);
+        fields.forEach(key => {
+            emptyRecord[key] = '';
+        });
+    }
+
+    return emptyRecord;
+}
+
+// Получение типовых полей для таблицы
 function getDefaultFieldsForTable(tableName) {
     const defaultFields = {
         'equipment': ['name', 'type', 'brand', 'status', 'location', 'lastMaintenance'],
@@ -950,185 +1145,13 @@ function getDefaultFieldsForTable(tableName) {
     return defaultFields[tableName] || ['name', 'description'];
 }
 
-// Отправка формы создания
-async function submitCreateForm(form) {
-    try {
-        const formData = new FormData(form);
-        const data = {};
-
-        for (let [key, value] of formData.entries()) {
-            if (value !== '') {
-                data[key] = value;
-            }
-        }
-
-        console.log('📤 Отправка данных для создания:', data);
-
-        // Отправляем запрос
-        const result = await api.createRecord(currentTable, data);
-
-        if (result.success) {
-            showNotification('Запись успешно создана', 'success');
-            closeEditModal();
-
-            // Обновляем таблицу
-            await generateData();
-        } else {
-            throw new Error(result.message || 'Ошибка при создании записи');
-        }
-
-    } catch (error) {
-        console.error('❌ Ошибка при создании записи:', error);
-
-        let errorMessage = 'Ошибка при создании записи';
-        if (error.status === 400) {
-            errorMessage = 'Неверные данные. Проверьте введенные значения.';
-        } else if (error.status === 403) {
-            errorMessage = 'У вас нет прав на создание записи.';
-        } else if (error.status === 409) {
-            errorMessage = 'Запись с такими данными уже существует.';
-        } else if (error.status === 500) {
-            errorMessage = 'Ошибка сервера при создании записи.';
-        }
-
-        showNotification(`${errorMessage}: ${error.message || 'Неизвестная ошибка'}`, 'error');
-    }
-}
-
-// Показать модальное окно редактирования
-function showEditModal(record) {
-    if (!record) return;
-
-    // Создаем модальное окно, если его нет
-    if (!document.getElementById('editModal')) {
-        createEditModal();
-    }
-
-    const modal = document.getElementById('editModal');
-    const modalContent = document.getElementById('editModalContent');
-
-    if (!modal || !modalContent) {
-        console.error('Не удалось найти элементы модального окна редактирования');
-        showNotification('Ошибка при открытии окна редактирования', 'error');
-        return;
-    }
-
-    const recordId = api.getRecordId(record);
-    const isAdmin = api.isAdmin();
-    const isDeleted = isRecordDeleted(record);
-
-    let html = `<h3>Редактирование записи</h3>`;
-
-    if (isDeleted && isAdmin) {
-        html += `<div class="admin-only-element" style="color: #ff6b6b;">
-                    <strong>⚠️ Эта запись удалена</strong><br>
-                    <small>Вы можете восстановить её, сняв отметку об удалении</small>
-                 </div>`;
-    }
-
-    html += '<form id="editForm" class="edit-form">';
-
-    const hiddenFields = getHiddenFieldsForRole();
-    let fields = Object.keys(record).filter(key => !hiddenFields.includes(key.toLowerCase()));
-
-    // Сортируем поля для администратора
-    if (isAdmin) {
-        fields = sortHeadersForAdmin(fields);
-    }
-
-    // Создаем поля формы
-    fields.forEach(key => {
-        let value = record[key];
-        const formattedValue = escapeHtml(formatValueForInput(value));
-        const label = escapeHtml(formatHeader(key));
-        const isReadOnlyService = isReadOnlyServiceField(key);
-        const isIdField = isIdColumn(key);
-        const isBooleanField = typeof value === 'boolean';
-        const isDateField = isDateColumn(key, value);
-        const isPasswordField = key.toLowerCase() === 'password';
-
-        html += `<div class="form-group">`;
-        html += `<label for="${escapeHtml(key)}">${label}:</label>`;
-
-        if (isReadOnlyService || isIdField) {
-            // Поля только для чтения
-            html += `<input type="text" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
-                           value="${formattedValue}" class="form-input" readonly>
-                    <small class="readonly-note">${isIdField ? 'ID нельзя изменить' : 'Это поле заполняется автоматически'}</small>`;
-        } else if (isBooleanField) {
-            // Булевы поля
-            html += `<select id="${escapeHtml(key)}" name="${escapeHtml(key)}" class="form-input">
-                        <option value="true" ${value === true ? 'selected' : ''}>Да</option>
-                        <option value="false" ${value === false ? 'selected' : ''}>Нет</option>
-                     </select>`;
-        } else if (isDateField) {
-            // Поля даты
-            const dateValue = formatDateForInput(value);
-            html += `<input type="datetime-local" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
-                           value="${dateValue}" class="form-input">`;
-        } else if (isPasswordField) {
-            // Поля пароля (оставляем пустым, чтобы не показывать хэш)
-            html += `<input type="password" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
-                           placeholder="Оставьте пустым, чтобы не менять" class="form-input">`;
-        } else {
-            // Обычные текстовые поля
-            html += `<input type="text" id="${escapeHtml(key)}" name="${escapeHtml(key)}" 
-                           value="${formattedValue}" class="form-input">`;
-        }
-
-        html += `</div>`;
-    });
-
-    html += `<div class="modal-actions">
-                <button type="submit" class="btn btn-primary">Сохранить</button>
-                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Отмена</button>
-             </div>`;
-    html += '</form>';
-
-    modalContent.innerHTML = html;
-    modal.style.display = 'flex';
-
-    // Настраиваем обработчик формы
-    const form = document.getElementById('editForm');
-    if (form) {
-        form.onsubmit = async function (e) {
-            e.preventDefault();
-            await submitEditForm(recordId, form, isDeleted);
-        };
-    }
-}
-
-// Создание модального окна редактирования
-function createEditModal() {
-    const modal = document.createElement('div');
-    modal.id = 'editModal';
-    modal.className = 'modal';
-
-    modal.innerHTML = `
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <div id="editModalContent"></div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    // Закрытие по клику вне окна
-    modal.addEventListener('click', function (event) {
-        if (event.target === modal) {
-            closeEditModal();
-        }
-    });
-
-    // Закрытие по кнопке
-    modal.querySelector('.close-modal').addEventListener('click', closeEditModal);
-
-    return modal;
-}
-
 // Проверка, является ли поле датой
 function isDateColumn(key, value) {
-    if (!value) return false;
+    if (!value) {
+        // Проверяем по названию поля
+        const dateFields = ['date', 'created', 'updated', 'deleted', 'lastlogin', 'when', 'at'];
+        return dateFields.some(field => key.toLowerCase().includes(field));
+    }
 
     const dateRegex = /^\d{4}-\d{2}-\d{2}/;
     const dateFields = ['date', 'created', 'updated', 'deleted', 'lastlogin', 'when', 'at'];
@@ -1139,15 +1162,13 @@ function isDateColumn(key, value) {
     return isDateString || hasDateInName;
 }
 
-// Форматирование даты для input[type="datetime-local"]
+// Форматирование даты для input
 function formatDateForInput(dateString) {
     if (!dateString) return '';
 
     try {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '';
-
-        // Преобразуем в формат YYYY-MM-DDTHH:MM
         return date.toISOString().slice(0, 16);
     } catch (e) {
         return '';
@@ -1171,54 +1192,35 @@ function formatValueForInput(value) {
     return value.toString();
 }
 
-// Отправка формы редактирования
-async function submitEditForm(recordId, form, wasDeleted) {
-    try {
-        const formData = new FormData(form);
-        const data = {};
+// Создание модального окна
+function createEditModal() {
+    console.log('🛠️ Создание модального окна...');
 
-        for (let [key, value] of formData.entries()) {
-            // Проверяем, является ли поле только для чтения
-            const input = form.querySelector(`[name="${key}"]`);
-            if (input && (input.readOnly || input.disabled)) {
-                continue;
-            }
+    const modal = document.createElement('div');
+    modal.id = 'editModal';
+    modal.className = 'modal';
 
-            // Для пароля пропускаем пустые значения
-            if (key.toLowerCase() === 'password' && value === '') {
-                continue;
-            }
+    modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close-modal" title="Закрыть">&times;</span>
+            <div id="editModalContent"></div>
+        </div>
+    `;
 
-            data[key] = value;
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) {
+            closeEditModal();
         }
+    });
 
-        console.log('📤 Отправка данных для редактирования:', data);
-
-        // Отправляем запрос
-        await api.updateRecord(currentTable, recordId, data);
-
-        showNotification('Запись успешно обновлена', 'success');
-        closeEditModal();
-
-        // Обновляем таблицу
-        await generateData();
-
-    } catch (error) {
-        console.error('❌ Ошибка при обновлении записи:', error);
-
-        let errorMessage = 'Ошибка при обновлении записи';
-        if (error.status === 400) {
-            errorMessage = 'Неверные данные. Проверьте введенные значения.';
-        } else if (error.status === 404) {
-            errorMessage = 'Запись не найдена на сервере.';
-        } else if (error.status === 403) {
-            errorMessage = 'У вас нет прав на редактирование этой записи.';
-        } else if (error.status === 500) {
-            errorMessage = 'Ошибка сервера при сохранении изменений.';
-        }
-
-        showNotification(`${errorMessage}: ${error.message || 'Неизвестная ошибка'}`, 'error');
+    const closeBtn = modal.querySelector('.close-modal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeEditModal);
     }
+
+    return modal;
 }
 
 // Закрытие модального окна редактирования
@@ -1233,6 +1235,174 @@ function closeEditModal() {
     }
 }
 
+// ==================== ОТПРАВКА ФОРМ ====================
+
+// Отправка формы создания
+async function submitCreateForm(form) {
+    try {
+        const formData = new FormData(form);
+        const data = {};
+
+        for (let [key, value] of formData.entries()) {
+            if (value !== '') {
+                data[key] = value;
+            }
+        }
+
+        console.log('📤 Отправка данных для создания:', data);
+
+        // Проверяем обязательные поля
+        if (!validateFormData(data, 'create')) {
+            return;
+        }
+
+        // Отправляем запрос
+        const result = await api.createRecord(currentTable, data);
+        console.log('✅ Результат создания записи:', result);
+
+        // Обработка результата
+        if (result) {
+            if (result.localCreate || result.local) {
+                showNotification(result.message || 'Запись создана локально', 'info');
+
+                if (result.data) {
+                    currentData.push(result.data);
+                    displayTableData(currentData);
+                    showNotification('Запись добавлена в таблицу', 'success');
+                }
+            } else {
+                showNotification('Запись успешно создана', 'success');
+                await generateData();
+            }
+        } else {
+            showNotification('Запись создана', 'success');
+            await generateData();
+        }
+
+        closeEditModal();
+
+    } catch (error) {
+        console.error('❌ Ошибка при создании записи:', error);
+
+        let errorMessage = 'Ошибка при создании записи';
+        if (error.status === 400) {
+            errorMessage = 'Неверные данные. Проверьте введенные значения.';
+        } else if (error.status === 403) {
+            errorMessage = 'У вас нет прав на создание записи.';
+        } else if (error.status === 409) {
+            errorMessage = 'Запись с такими данными уже существует.';
+        } else if (error.status === 500) {
+            errorMessage = 'Ошибка сервера при создании записи.';
+        } else if (error.message && error.message.includes('подключиться к серверу')) {
+            errorMessage = 'Не удалось подключиться к серверу. Проверьте подключение к интернету.';
+        }
+
+        showNotification(`${errorMessage}: ${error.message || 'Неизвестная ошибка'}`, 'error');
+    }
+}
+
+// Отправка формы редактирования
+async function submitEditForm(recordId, form) {
+    try {
+        const formData = new FormData(form);
+        const data = {};
+
+        for (let [key, value] of formData.entries()) {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input && (input.readOnly || input.disabled)) {
+                continue;
+            }
+
+            if (key.toLowerCase() === 'password' && value === '') {
+                continue;
+            }
+
+            data[key] = value;
+        }
+
+        console.log('📤 Отправка данных для редактирования:', data);
+
+        // Проверяем обязательные поля
+        if (!validateFormData(data, 'edit')) {
+            return;
+        }
+
+        // Отправляем запрос
+        const result = await api.updateRecord(currentTable, recordId, data);
+        console.log('✅ Результат обновления записи:', result);
+
+        // Обработка результата
+        if (result) {
+            if (result.localUpdate || result.local) {
+                showNotification(result.message || 'Запись обновлена локально', 'info');
+
+                const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
+                if (index !== -1) {
+                    currentData[index] = { ...currentData[index], ...data };
+                    displayTableData(currentData);
+                }
+            } else {
+                showNotification('Запись успешно обновлена', 'success');
+                await generateData();
+            }
+        } else {
+            showNotification('Запись обновлена', 'success');
+            await generateData();
+        }
+
+        closeEditModal();
+
+    } catch (error) {
+        console.error('❌ Ошибка при обновлении записи:', error);
+
+        let errorMessage = 'Ошибка при обновлении записи';
+        if (error.status === 400) {
+            errorMessage = 'Неверные данные. Проверьте введенные значения.';
+        } else if (error.status === 404) {
+            errorMessage = 'Запись не найдена на сервере.';
+        } else if (error.status === 403) {
+            errorMessage = 'У вас нет прав на редактирование этой записи.';
+        } else if (error.status === 500) {
+            errorMessage = 'Ошибка сервера при сохранении изменений.';
+        } else if (error.message && error.message.includes('подключиться к серверу')) {
+            errorMessage = 'Не удалось подключиться к серверу. Проверьте подключение к интернету.';
+        }
+
+        showNotification(`${errorMessage}: ${error.message || 'Неизвестная ошибка'}`, 'error');
+    }
+}
+
+// Валидация данных формы
+function validateFormData(data, action = 'create') {
+    const requiredFields = ['name', 'username', 'email'];
+    for (const field of requiredFields) {
+        if (data[field] === '' || data[field] === undefined) {
+            showNotification(`Поле "${formatHeader(field)}" обязательно для заполнения`, 'error');
+            return false;
+        }
+    }
+
+    if (data.email && !isValidEmail(data.email)) {
+        showNotification('Некорректный формат email', 'error');
+        return false;
+    }
+
+    if (data.password && data.password.length < 6) {
+        showNotification('Пароль должен содержать не менее 6 символов', 'error');
+        return false;
+    }
+
+    return true;
+}
+
+// Проверка email
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+// ==================== УДАЛЕНИЕ И ВОССТАНОВЛЕНИЕ ====================
+
 // Обработка удаления/восстановления записи
 async function handleDeleteRestore(record) {
     try {
@@ -1241,19 +1411,34 @@ async function handleDeleteRestore(record) {
         const isDeleted = isRecordDeleted(record);
 
         if (isAdmin && isDeleted) {
-            // Восстановление записи (только для администратора)
             if (confirm('Восстановить эту запись?')) {
                 const result = await api.restoreRecord(currentTable, recordId);
 
-                if (result.success) {
+                if (result) {
+                    if (result.localRestore || result.local) {
+                        showNotification(result.message || 'Запись восстановлена локально', 'info');
+
+                        const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
+                        if (index !== -1) {
+                            delete currentData[index].isDeleted;
+                            delete currentData[index].IsDeleted;
+                            delete currentData[index].deletedAt;
+                            delete currentData[index].DeletedAt;
+                            delete currentData[index].whenDeleted;
+                            delete currentData[index].WhenDeleted;
+
+                            displayTableData(currentData);
+                        }
+                    } else {
+                        showNotification('Запись восстановлена', 'success');
+                        await generateData();
+                    }
+                } else {
                     showNotification('Запись восстановлена', 'success');
                     await generateData();
-                } else {
-                    throw new Error(result.message || 'Ошибка при восстановлении');
                 }
             }
         } else {
-            // Удаление записи
             let message = isAdmin ?
                 'Пометить запись как удаленную (мягкое удаление)?' :
                 'Удалить эту запись?';
@@ -1261,11 +1446,31 @@ async function handleDeleteRestore(record) {
             if (confirm(message)) {
                 const result = await api.deleteRecord(currentTable, recordId);
 
-                if (result.success) {
+                if (result) {
+                    if (result.localDelete || result.local) {
+                        showNotification(result.message || 'Запись удалена локально', 'info');
+
+                        if (isAdmin) {
+                            const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
+                            if (index !== -1) {
+                                currentData[index].isDeleted = true;
+                                currentData[index].deletedAt = new Date().toISOString();
+                                displayTableData(currentData);
+                            }
+                        } else {
+                            const index = currentData.findIndex(item => api.getRecordId(item) === recordId);
+                            if (index !== -1) {
+                                currentData.splice(index, 1);
+                                displayTableData(currentData);
+                            }
+                        }
+                    } else {
+                        showNotification(isAdmin ? 'Запись помечена как удаленная' : 'Запись удалена', 'success');
+                        await generateData();
+                    }
+                } else {
                     showNotification(isAdmin ? 'Запись помечена как удаленная' : 'Запись удалена', 'success');
                     await generateData();
-                } else {
-                    throw new Error(result.message || 'Ошибка при удалении');
                 }
             }
         }
@@ -1275,43 +1480,9 @@ async function handleDeleteRestore(record) {
     }
 }
 
-// Обработка редактирования записи
-async function handleEditRecord(record) {
-    try {
-        const recordId = api.getRecordId(record);
-        const isAdmin = api.isAdmin();
-        const isDeleted = isRecordDeleted(record);
+// ==================== ПРОСМОТР ДЕТАЛЕЙ ====================
 
-        if (isDeleted) {
-            if (isAdmin) {
-                if (!confirm('Эта запись удалена. Хотите восстановить и редактировать её?')) {
-                    return;
-                }
-                const result = await api.restoreRecord(currentTable, recordId);
-                if (result.success) {
-                    showNotification('Запись восстановлена', 'success');
-                    // Обновляем запись после восстановления
-                    await generateData();
-                    // Находим восстановленную запись
-                    const updatedRecord = currentData.find(item => api.getRecordId(item) === recordId);
-                    if (updatedRecord) {
-                        showEditModal(updatedRecord);
-                    }
-                }
-            } else {
-                showNotification('Нельзя редактировать удаленную запись', 'error');
-                return;
-            }
-        } else {
-            showEditModal(record);
-        }
-    } catch (error) {
-        console.error('❌ Ошибка при подготовке к редактированию:', error);
-        showNotification(`Ошибка: ${error.message}`, 'error');
-    }
-}
-
-// Просмотр детальной информации о записи
+// Просмотр детальной информации
 function viewDetails(data, displayHeaders = null) {
     const modal = document.getElementById('detailsModal');
     const modalContent = document.getElementById('modalContent');
@@ -1339,7 +1510,7 @@ function viewDetails(data, displayHeaders = null) {
     let html = '<h3>Подробная информация</h3>';
 
     if (isDeleted && isAdmin) {
-        html += `<div style="background-color: #fff0f0; padding: 10px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ff6b6b;">
+        html += `<div class="deleted-warning">
                     <strong>⚠️ Эта запись удалена</strong><br>
                     <small>Видна только администраторам</small>
                  </div>`;
@@ -1381,6 +1552,8 @@ function closeModal() {
     }
 }
 
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+
 // Очистка таблицы
 function clearTable() {
     const tableHeader = document.getElementById('tableHeader');
@@ -1392,7 +1565,7 @@ function clearTable() {
     if (tableBody) tableBody.innerHTML = '';
     if (tableContainer) tableContainer.style.display = 'none';
     if (noData) {
-        noData.textContent = 'Выберите таблицу';
+        noData.textContent = 'Выберите таблицу для отображения данных';
         noData.style.display = 'block';
     }
 
@@ -1402,24 +1575,24 @@ function clearTable() {
     sortDirection = 'asc';
 }
 
-// Проверка, нужно ли скрывать ID колонки
-function shouldHideIdColumns() {
-    return !api.isAdmin();
-}
-
 // Показ уведомления
 function showNotification(message, type = 'info') {
-    // Удаляем старые уведомления
     document.querySelectorAll('.notification').forEach(n => n.remove());
 
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
-    notification.textContent = message;
+
+    let icon = 'ℹ️';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+    if (type === 'warning') icon = '⚠️';
+
+    notification.innerHTML = `${icon} ${message}`;
+    notification.title = 'Нажмите для закрытия';
 
     document.body.appendChild(notification);
 
-    // Автоматическое скрытие через 5 секунд
-    setTimeout(() => {
+    const autoHide = setTimeout(() => {
         if (notification.parentNode) {
             notification.style.opacity = '0';
             notification.style.transform = 'translateX(100%)';
@@ -1427,8 +1600,8 @@ function showNotification(message, type = 'info') {
         }
     }, 5000);
 
-    // Закрытие по клику
     notification.addEventListener('click', () => {
+        clearTimeout(autoHide);
         notification.style.opacity = '0';
         notification.style.transform = 'translateX(100%)';
         setTimeout(() => notification.remove(), 300);
@@ -1456,19 +1629,21 @@ function formatValue(value) {
     }
 
     if (typeof value === 'boolean') {
-        return value ? 'Да' : 'Нет';
+        return value ? '✅ Да' : '❌ Нет';
     }
 
     if (typeof value === 'number') {
         if (Number.isInteger(value)) {
             return value.toLocaleString('ru-RU');
         } else {
+            if (Math.abs(value) > 1000) {
+                return value.toFixed(2).replace('.', ',') + ' ₽';
+            }
             return value.toFixed(2).replace('.', ',');
         }
     }
 
     if (typeof value === 'string') {
-        // Проверяем, является ли строка датой
         const dateRegex = /^\d{4}-\d{2}-\d{2}/;
         if (dateRegex.test(value)) {
             try {
@@ -1478,16 +1653,23 @@ function formatValue(value) {
                         return date.toLocaleDateString('ru-RU') + ' ' +
                             date.toLocaleTimeString('ru-RU', {
                                 hour: '2-digit',
-                                minute: '2-digit'
+                                minute: '2-digit',
+                                second: '2-digit'
                             });
                     }
                     return date.toLocaleDateString('ru-RU');
                 }
-            } catch (e) {
-                // Не дата, возвращаем как есть
-            }
+            } catch (e) { }
         }
         return value;
+    }
+
+    if (Array.isArray(value)) {
+        return value.join(', ');
+    }
+
+    if (typeof value === 'object') {
+        return JSON.stringify(value, null, 2);
     }
 
     return String(value);
@@ -1496,7 +1678,6 @@ function formatValue(value) {
 // Форматирование заголовка
 function formatHeader(header) {
     const translations = {
-        // ID поля
         'id': 'ID',
         'idequipment': 'ID Оборудования',
         'idfuel': 'ID Топлива',
@@ -1504,8 +1685,6 @@ function formatHeader(header) {
         'idrepair': 'ID Ремонта',
         'idroles': 'ID Роли',
         'idusers': 'ID Пользователя',
-
-        // Основные поля
         'name': 'Название',
         'brand': 'Бренд',
         'type': 'Тип',
@@ -1539,8 +1718,6 @@ function formatHeader(header) {
         'createddate': 'Дата создания',
         'modifieddate': 'Дата изменения',
         'isactive': 'Активен',
-
-        // Служебные поля
         'dateofrecording': 'Когда создали',
         'date_of_recording': 'Когда создали',
         'Date_of_recording': 'Когда создали',
@@ -1576,45 +1753,22 @@ function formatHeader(header) {
         return translations[lowerHeader];
     }
 
-    // Преобразование camelCase и snake_case в читаемый текст
     const words = header
         .replace(/([A-Z])/g, ' $1')
         .replace(/_/g, ' ')
         .trim()
         .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+        .map(word => {
+            if (word === word.toUpperCase() && word.length <= 3) {
+                return word;
+            }
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        });
 
     return words.join(' ');
 }
 
-// Показать индикатор администратора
-function showAdminIndicator() {
-    if (!api.isAdmin()) return;
-
-    // Удаляем старый индикатор, если есть
-    const oldIndicator = document.querySelector('.admin-mode-indicator');
-    if (oldIndicator) oldIndicator.remove();
-
-    const indicator = document.createElement('div');
-    indicator.className = 'admin-mode-indicator';
-    indicator.textContent = '👑 РЕЖИМ АДМИНИСТРАТОРА';
-    indicator.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
-        color: white;
-        padding: 5px 10px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: bold;
-        z-index: 1000;
-        box-shadow: 0 2px 10px rgba(255, 152, 0, 0.3);
-        animation: pulse 2s infinite;
-    `;
-
-    document.body.appendChild(indicator);
-}
+// ==================== СТРАНИЦА СТАТИСТИКИ ====================
 
 // Переход на страницу статистики
 function showStatisticsPage() {
@@ -1626,14 +1780,15 @@ function showStatisticsPage() {
     window.location.href = 'statistics.html';
 }
 
-// Обновление данных (аналог generateData)
+// Обновление данных
 function refreshData() {
     generateData();
 }
 
-// Экспорт функций в глобальную область видимости
+// ==================== ЭКСПОРТ ФУНКЦИЙ ====================
+
 window.showStatisticsPage = showStatisticsPage;
-window.logout = logout;
+window.logout = handleLogout;
 window.onTableSelect = onTableSelect;
 window.generateData = generateData;
 window.refreshData = refreshData;
@@ -1642,3 +1797,5 @@ window.closeModal = closeModal;
 window.closeEditModal = closeEditModal;
 window.handleEditRecord = handleEditRecord;
 window.showCreateModal = showCreateModal;
+
+console.log('🎉 Файл dashboard.js загружен и готов к работе!');
