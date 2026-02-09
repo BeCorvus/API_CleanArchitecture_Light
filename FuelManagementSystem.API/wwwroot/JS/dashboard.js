@@ -263,7 +263,7 @@ function updateButtonStates() {
     } else if (!isTableAvailable && isTableSelected) {
         createBtn.title = 'Нет доступа к этой таблице';
     } else {
-        createBtn.title = 'Выберите таблицу для создания записей';
+        createBtn.title = 'Выберите таблице для создания записей';
     }
 
     // Кнопка "Обновить данные"
@@ -980,6 +980,14 @@ function showRecordModal(record, isCreate = false) {
     const hiddenFields = getHiddenFieldsForRole();
     fields = fields.filter(key => !hiddenFields.includes(key.toLowerCase()));
 
+    // Убираем ID поля при создании и редактировании
+    fields = fields.filter(key => {
+        const isId = isIdColumn(key);
+        const isService = getServiceFieldOrder(key) < 999;
+        // Исключаем ID поля полностью
+        return !isId && !isService;
+    });
+
     // Сортируем поля для администратора
     if (isAdmin) {
         fields = sortHeadersForAdmin(fields);
@@ -1002,10 +1010,6 @@ function showRecordModal(record, isCreate = false) {
             fieldType = 'date';
         } else if (key.toLowerCase() === 'password') {
             fieldType = 'password';
-        } else if (isIdColumn(key)) {
-            fieldType = 'id';
-        } else if (isReadOnlyServiceField(key)) {
-            fieldType = 'readonly';
         }
 
         const label = escapeHtml(formatHeader(key));
@@ -1037,14 +1041,6 @@ function showRecordModal(record, isCreate = false) {
                 if (!isCreate) {
                     html += `<small class="field-hint">Заполните только если хотите изменить пароль</small>`;
                 }
-                break;
-
-            case 'id':
-            case 'readonly':
-                const displayValue = isCreate ? '' : escapeHtml(formatValueForInput(value));
-                html += `<input type="text" id="${inputId}" name="${inputName}" 
-                               value="${displayValue}" class="form-input" readonly>
-                        <small class="readonly-note">${fieldType === 'id' ? 'ID нельзя изменить' : 'Это поле заполняется автоматически'}</small>`;
                 break;
 
             default:
@@ -1100,6 +1096,14 @@ function createEmptyRecord() {
         const sampleRecord = currentData[0];
 
         for (const key in sampleRecord) {
+            // Пропускаем ID и служебные поля при создании
+            const isId = isIdColumn(key);
+            const isService = getServiceFieldOrder(key) < 999;
+
+            if (isId || isService) {
+                continue;
+            }
+
             const value = sampleRecord[key];
 
             if (typeof value === 'boolean') {
@@ -1110,21 +1114,20 @@ function createEmptyRecord() {
                 emptyRecord[key] = '';
             } else if (key.toLowerCase() === 'password') {
                 emptyRecord[key] = '';
-            } else if (isIdColumn(key)) {
-                // ID поля оставляем пустыми - они сгенерируются на сервере
-                emptyRecord[key] = '';
-            } else if (isReadOnlyServiceField(key)) {
-                // Служебные поля оставляем пустыми
-                emptyRecord[key] = '';
             } else {
                 emptyRecord[key] = '';
             }
         }
     } else {
-        // Используем типовые поля
+        // Используем типовые поля, исключая ID и служебные
         const fields = getDefaultFieldsForTable(currentTable);
         fields.forEach(key => {
-            emptyRecord[key] = '';
+            const isId = isIdColumn(key);
+            const isService = getServiceFieldOrder(key) < 999;
+
+            if (!isId && !isService) {
+                emptyRecord[key] = '';
+            }
         });
     }
 
@@ -1244,6 +1247,14 @@ async function submitCreateForm(form) {
         const data = {};
 
         for (let [key, value] of formData.entries()) {
+            // Пропускаем ID и служебные поля при создании
+            const isId = isIdColumn(key);
+            const isService = getServiceFieldOrder(key) < 999;
+
+            if (isId || isService) {
+                continue;
+            }
+
             if (value !== '') {
                 data[key] = value;
             }
@@ -1313,6 +1324,15 @@ async function submitEditForm(recordId, form) {
                 continue;
             }
 
+            // Пропускаем ID и служебные поля при редактировании
+            const isId = isIdColumn(key);
+            const isService = getServiceFieldOrder(key) < 999;
+
+            if (isId || isService) {
+                continue;
+            }
+
+            // Для пароля оставляем пустое значение, если пользователь не хочет менять пароль
             if (key.toLowerCase() === 'password' && value === '') {
                 continue;
             }
@@ -1374,7 +1394,38 @@ async function submitEditForm(recordId, form) {
 
 // Валидация данных формы
 function validateFormData(data, action = 'create') {
-    const requiredFields = ['name', 'username', 'email'];
+    // Определяем обязательные поля в зависимости от текущей таблицы
+    let requiredFields = [];
+
+    switch (currentTable) {
+        case 'users':
+            if (action === 'create') {
+                requiredFields = ['username', 'email', 'password'];
+            } else {
+                requiredFields = ['username', 'email'];
+                // Пароль не обязателен при редактировании
+            }
+            break;
+        case 'equipment':
+            requiredFields = ['name'];
+            break;
+        case 'fuel':
+            requiredFields = ['name'];
+            break;
+        case 'geyser':
+            requiredFields = ['name'];
+            break;
+        case 'repair':
+            requiredFields = ['description'];
+            break;
+        case 'roles':
+            requiredFields = ['name'];
+            break;
+        default:
+            requiredFields = ['name'];
+    }
+
+    // Проверяем обязательные поля
     for (const field of requiredFields) {
         if (data[field] === '' || data[field] === undefined) {
             showNotification(`Поле "${formatHeader(field)}" обязательно для заполнения`, 'error');
@@ -1382,12 +1433,20 @@ function validateFormData(data, action = 'create') {
         }
     }
 
-    if (data.email && !isValidEmail(data.email)) {
+    // Проверяем email только для таблицы users
+    if (currentTable === 'users' && data.email && !isValidEmail(data.email)) {
         showNotification('Некорректный формат email', 'error');
         return false;
     }
 
-    if (data.password && data.password.length < 6) {
+    // Проверяем пароль только для таблицы users при создании
+    if (currentTable === 'users' && action === 'create' && data.password && data.password.length < 6) {
+        showNotification('Пароль должен содержать не менее 6 символов', 'error');
+        return false;
+    }
+
+    // Для редактирования пользователя: если пароль указан, проверяем его длину
+    if (currentTable === 'users' && action === 'edit' && data.password && data.password !== '' && data.password.length < 6) {
         showNotification('Пароль должен содержать не менее 6 символов', 'error');
         return false;
     }
